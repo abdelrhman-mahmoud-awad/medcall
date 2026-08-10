@@ -1,0 +1,57 @@
+const router = require('express').Router();
+const auth   = require('../middleware/auth');
+const Script = require('../models/Script');
+
+// GET /api/scripts
+router.get('/', auth, async (req, res) => {
+  try {
+    const scripts = await Script.find({ active: true }).sort({ createdAt: -1 });
+    res.json(scripts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/scripts
+router.post('/', auth, async (req, res) => {
+  try {
+    const script = await Script.create({ ...req.body, createdBy: req.user._id });
+    res.status(201).json(script);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// GET /api/scripts/:id
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const script = await Script.findById(req.params.id);
+    if (!script) return res.status(404).json({ error: 'Not found' });
+    res.json(script);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/scripts/:id
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const script = await Script.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!script) return res.status(404).json({ error: 'Not found' });
+    res.json(script);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// DELETE /api/scripts/:id (soft delete)
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    await Script.findByIdAndUpdate(req.params.id, { active: false });
+    res.json({ message: 'Archived' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
