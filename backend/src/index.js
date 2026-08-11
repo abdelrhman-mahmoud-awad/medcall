@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 // Fail fast if critical env vars are missing
@@ -17,7 +18,26 @@ const mongoose = require('mongoose');
 const app = express();
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+const allowedOrigins = new Set(
+  [
+    process.env.CLIENT_URL,
+    process.env.PUBLIC_URL,
+    process.env.BASE_URL,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+  ].filter(Boolean).map((origin) => origin.replace(/\/$/, ''))
+);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    const normalized = origin.replace(/\/$/, '');
+    if (allowedOrigins.has(normalized)) return cb(null, true);
+    return cb(new Error(`CORS blocked for origin: ${origin}`));
+  },
+}));
 app.use(express.json());
 // Twilio sends form-encoded webhook bodies
 app.use(express.urlencoded({ extended: false }));
@@ -31,6 +51,26 @@ app.use('/api/twilio',  require('./routes/twilio'));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (_, res) => res.json({ status: 'ok', time: new Date() }));
+
+// ── Frontend shell (serve built React app when available) ────────────────────
+const frontendDist = path.resolve(__dirname, '../../frontend/dist');
+const frontendIndex = path.join(frontendDist, 'index.html');
+
+if (fs.existsSync(frontendIndex)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(frontendIndex);
+  });
+} else {
+  app.get('/', (_, res) => {
+    res.json({
+      status: 'ok',
+      service: 'medcall-backend',
+      frontend: process.env.CLIENT_URL || 'http://localhost:5173',
+    });
+  });
+}
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_, res) => res.status(404).json({ error: 'Route not found' }));
