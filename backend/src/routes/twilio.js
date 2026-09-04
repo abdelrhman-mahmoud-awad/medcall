@@ -83,6 +83,7 @@ router.post('/call', auth, async (req, res) => {
       to:     contact.phone,
       from:   process.env.TWILIO_NUMBER,
       url:    `${getBaseUrl(req)}/api/twilio/twiml/greeting`,
+      method: 'GET',
       statusCallback: `${getBaseUrl(req)}/api/twilio/status`,
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       statusCallbackMethod: 'POST',
@@ -121,18 +122,28 @@ router.post('/call', auth, async (req, res) => {
 });
 
 // ─── 2. TwiML: Greeting  ──────────────────────────────────────────────────────
-// GET /api/twilio/twiml/greeting?CallSid=...
-router.get('/twiml/greeting', async (req, res) => {
-  const { CallSid } = req.query;
+// GET/POST /api/twilio/twiml/greeting?CallSid=...
+router.all('/twiml/greeting', async (req, res) => {
+  const CallSid = req.query.CallSid || req.body?.CallSid;
   res.type('text/xml');
 
   const audioKey = `${CallSid}_greeting`;
-  const greetingText = 'أهلاً، هذا اختبار اتصال من تطبيق MedCall.';
   const baseUrl = getBaseUrl(req);
+
+  // Prefer the pre-generated AI greeting audio; fall back to <Say> with the
+  // session's greeting text (or a generic message) if audio isn't cached.
+  let speakBlock;
+  if (audioCache.has(audioKey)) {
+    speakBlock = `<Play>${baseUrl}/api/twilio/audio/${encodeURIComponent(audioKey)}</Play>`;
+  } else {
+    const s = session.get(CallSid);
+    const greetingText = s?.history?.[0]?.content || 'أهلاً، معاك سلمى من MedCall. إزيك النهاردة؟';
+    speakBlock = `<Say language="ar-EG" voice="woman">${greetingText}</Say>`;
+  }
 
   res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say language="ar-EG" voice="woman">${greetingText}</Say>
+  ${speakBlock}
   <Record action="${baseUrl}/api/twilio/twiml/respond" method="POST"
           maxLength="30" timeout="5" playBeep="false"
           recordingStatusCallback="${baseUrl}/api/twilio/recording-ready" />
@@ -163,8 +174,10 @@ router.post('/twiml/respond', async (req, res) => {
   }
 
   try {
-    // Give Twilio a second to make the recording available
-    if (RecordingUrl && RecordingStatus === 'completed') {
+    // Note: the <Record action> callback sends RecordingUrl but NOT
+    // RecordingStatus (that only goes to recordingStatusCallback), so we
+    // must not require RecordingStatus here.
+    if (RecordingUrl) {
       const result = await s.processRecording(RecordingUrl);
 
       if (result.action === 'END_CALL' || result.action === 'ESCALATE') {
