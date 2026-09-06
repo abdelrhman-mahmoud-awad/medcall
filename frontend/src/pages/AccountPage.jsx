@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getMe, updateMe, getTeam, createTeamMember, getProjects, addProjectMember } from '../services/api';
+import { getMe, updateMe, getTeam, createTeamMember, updateTeamMember, getProjects, addProjectMember } from '../services/api';
 
 const emptyMember = { name: '', email: '', password: '', projectId: '' };
 
@@ -43,6 +43,18 @@ export default function AccountPage() {
       window.dispatchEvent(new Event('medcall:user-updated'));
     } catch (err) {
       flash('err', err.response?.data?.error || 'Update failed.');
+    }
+    setBusy(false);
+  };
+
+  const toggleActive = async (m) => {
+    setBusy(true);
+    try {
+      await updateTeamMember(m.id, { active: !m.active });
+      setTeam(t => t.map(x => x.id === m.id ? { ...x, active: !m.active } : x));
+      flash('ok', `${m.name} ${m.active ? 'deactivated — they can no longer sign in' : 'reactivated'}.`);
+    } catch (err) {
+      flash('err', err.response?.data?.error || 'Failed to update the member.');
     }
     setBusy(false);
   };
@@ -160,23 +172,46 @@ export default function AccountPage() {
               <div className="table-wrap">
                 <table className="table">
                   <thead>
-                    <tr><th>Name</th><th>Email</th><th>Projects</th><th>Added</th></tr>
+                    <tr>
+                      <th>Name</th><th>Projects</th><th>Calls</th><th>Forms</th>
+                      <th>Escalations</th><th>Last active</th><th>Status</th><th></th>
+                    </tr>
                   </thead>
                   <tbody>
                     {team.map(m => (
-                      <tr key={m.id}>
-                        <td><b>{m.name}</b></td>
-                        <td>{m.email}</td>
+                      <tr key={m.id} style={m.active === false ? { opacity: 0.55 } : undefined}>
+                        <td>
+                          <b>{m.name}</b>
+                          <br /><small className="muted">{m.email}</small>
+                        </td>
                         <td>
                           {m.projects?.length
                             ? m.projects.map(p => <span key={p} className="badge badge-blue" style={{ marginRight: 4 }}>{p}</span>)
                             : <span className="muted">Not attached</span>}
                         </td>
-                        <td className="muted">{new Date(m.createdAt).toLocaleDateString('en-GB')}</td>
+                        <td>{m.stats?.calls ?? 0}</td>
+                        <td>{m.stats?.forms ?? 0}</td>
+                        <td>{m.stats?.escalations ?? 0}</td>
+                        <td className="muted">
+                          {m.stats?.lastActiveAt
+                            ? new Date(m.stats.lastActiveAt).toLocaleString('en-GB')
+                            : '—'}
+                        </td>
+                        <td>
+                          <span className={`badge ${m.active === false ? 'badge-red' : 'badge-green'}`}>
+                            {m.active === false ? 'deactivated' : 'active'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <button type="button" className="btn btn-outline btn-sm" disabled={busy}
+                                  onClick={() => toggleActive(m)}>
+                            {m.active === false ? 'Reactivate' : 'Deactivate'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {!team.length && (
-                      <tr><td colSpan={4} className="empty-cell">
+                      <tr><td colSpan={8} className="empty-cell">
                         No member accounts yet — create one above. Members only see projects they're attached to.
                       </td></tr>
                     )}

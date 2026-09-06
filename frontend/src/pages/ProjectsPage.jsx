@@ -13,6 +13,21 @@ import {
  * Member: read-only progress for the projects they're attached to.
  */
 
+// Feather-style icons (stroke = currentColor), sized for 20px card usage
+function Icon({ name, size = 20 }) {
+  const paths = {
+    briefcase: <><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></>,
+    settings:  <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></>,
+    archive:   <><polyline points="21 8 21 21 3 21 3 8" /><rect x="1" y="3" width="22" height="5" /><line x1="10" y1="12" x2="14" y2="12" /></>,
+  };
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths[name]}
+    </svg>
+  );
+}
+
 function Bar({ done, target }) {
   const pct = target > 0 ? Math.min(100, Math.round((done / target) * 100)) : 0;
   return (
@@ -105,18 +120,25 @@ function ProjectCard({ project, isManager, onChanged }) {
   };
 
   return (
-    <div className="card">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <h3 style={{ fontSize: 16, margin: 0 }}>{project.name}</h3>
-        <span className="muted">
-          {project.sheet?.importedAt
-            ? `Sheet: ${project.sheet.sourceType === 'google_sheet' ? 'Google Sheets' : project.sheet.fileName || 'xlsx'} · ${new Date(project.sheet.importedAt).toLocaleDateString('en-GB')}`
-            : 'No sheet attached yet'}
-        </span>
+    <div className="card project-card">
+      <div className="project-head">
+        <span className="icon-chip"><Icon name="briefcase" size={20} /></span>
+        <div style={{ minWidth: 0 }}>
+          <h3 className="project-name">{project.name}</h3>
+          <p className="project-sub">
+            {project.sheet?.importedAt
+              ? `Sheet: ${project.sheet.sourceType === 'google_sheet' ? 'Google Sheets' : project.sheet.fileName || 'xlsx'} · ${new Date(project.sheet.importedAt).toLocaleDateString('en-GB')}`
+              : 'No sheet attached yet'}
+          </p>
+        </div>
         {isManager && (
-          <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-            <Link to={`/projects/${project._id}/settings`} className="btn btn-ghost btn-sm">Settings</Link>
-            <button onClick={archive} className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}>Archive</button>
+          <span className="project-actions">
+            <Link to={`/projects/${project._id}/settings`} className="btn btn-outline" title="Project settings">
+              <Icon name="settings" size={16} /> Settings
+            </Link>
+            <button onClick={archive} className="btn btn-danger-outline" title="Archive project">
+              <Icon name="archive" size={16} /> Archive
+            </button>
           </span>
         )}
       </div>

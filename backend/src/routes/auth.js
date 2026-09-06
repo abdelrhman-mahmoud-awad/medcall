@@ -34,6 +34,8 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user || !(await user.matchPassword(password)))
       return res.status(401).json({ error: 'Invalid credentials' });
+    if (user.active === false)
+      return res.status(403).json({ error: 'This account has been deactivated. Contact your manager.' });
 
     res.json({
       token: sign(user._id),
@@ -75,22 +77,76 @@ router.put('/me', auth, async (req, res) => {
   }
 });
 
-// GET /api/auth/team — manager: list member accounts under them (+ their projects)
+// GET /api/auth/team — manager: list member accounts under them
+// (+ their projects and per-member activity stats: calls, forms, escalations, last active)
 router.get('/team', auth, requireManager, async (req, res) => {
   try {
-    const Project = require('../models/Project');
+    const Project        = require('../models/Project');
+    const CallLog        = require('../models/CallLog');
+    const DataEntryDraft = require('../models/DataEntryDraft');
+
     const [members, projects] = await Promise.all([
       User.find({ role: 'member', manager: req.user._id })
-        .select('name email createdAt').sort('-createdAt'),
+        .select('name email createdAt active').sort('-createdAt'),
       Project.find({ manager: req.user._id, status: { $ne: 'archived' } })
         .select('name members'),
     ]);
-    res.json(members.map(m => ({
-      id: m._id, name: m.name, email: m.email, createdAt: m.createdAt,
-      projects: projects
-        .filter(p => p.members.some(id => String(id) === String(m._id)))
-        .map(p => p.name),
-    })));
+
+    const memberIds = members.map(m => m._id);
+    const [callAgg, formAgg] = await Promise.all([
+      CallLog.aggregate([
+        { $match: { initiatedBy: { $in: memberIds } } },
+        { $group: {
+          _id: '$initiatedBy',
+          calls:        { $sum: { $cond: [{ $in: ['$status', ['completed', 'escalated']] }, 1, 0] } },
+          escalations:  { $sum: { $cond: ['$escalated', 1, 0] } },
+          lastActiveAt: { $max: '$createdAt' },
+        } },
+      ]),
+      DataEntryDraft.aggregate([
+        { $match: { reviewedBy: { $in: memberIds }, status: 'entered' } },
+        { $group: { _id: '$reviewedBy', forms: { $sum: 1 }, lastFormAt: { $max: '$updatedAt' } } },
+      ]),
+    ]);
+    const callsOf = new Map(callAgg.map(r => [String(r._id), r]));
+    const formsOf = new Map(formAgg.map(r => [String(r._id), r]));
+
+    res.json(members.map(m => {
+      const c = callsOf.get(String(m._id)) || {};
+      const f = formsOf.get(String(m._id)) || {};
+      const lastActiveAt = [c.lastActiveAt, f.lastFormAt].filter(Boolean)
+        .sort((a, b) => new Date(b) - new Date(a))[0] || null;
+      return {
+        id: m._id, name: m.name, email: m.email, createdAt: m.createdAt,
+        active: m.active !== false,
+        projects: projects
+          .filter(p => p.members.some(id => String(id) === String(m._id)))
+          .map(p => p.name),
+        stats: {
+          calls:       c.calls || 0,
+          forms:       f.forms || 0,
+          escalations: c.escalations || 0,
+          lastActiveAt,
+        },
+      };
+    }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/auth/team/:id — manager: update one of THEIR members (activate/deactivate, rename)
+router.put('/team/:id', auth, requireManager, async (req, res) => {
+  try {
+    const member = await User.findOne({ _id: req.params.id, role: 'member', manager: req.user._id });
+    if (!member) return res.status(404).json({ error: 'Member not found on your team' });
+
+    const { active, name } = req.body;
+    if (active === true || active === false) member.active = active;
+    if (name?.trim()) member.name = name.trim();
+    await member.save();
+
+    res.json({ id: member._id, name: member.name, email: member.email, active: member.active !== false });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

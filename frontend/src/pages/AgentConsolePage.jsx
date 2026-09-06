@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import api from '../services/api';
 import { onProjectChange, withProject } from '../services/projectStore';
+import { isManager } from '../hooks/useRole';
 
 export default function AgentConsolePage() {
   const [agents,      setAgents]      = useState([]);
   const [escalations, setEscalations] = useState([]);
   const [form,        setForm]        = useState({ name: '', phone: '', email: '' });
   const [error,       setError]       = useState('');
+  const manager = isManager();
 
   // Live feed: surface escalated calls the moment they finalize
   useSocket((callLog) => {
@@ -76,6 +78,7 @@ export default function AgentConsolePage() {
       <div className="grid-2">
         {/* ── Agents management ── */}
         <div>
+          {manager && (
           <form onSubmit={addAgent} className="card">
             <h3 className="card-title">Add agent</h3>
             <div className="field">
@@ -95,6 +98,7 @@ export default function AgentConsolePage() {
             </div>
             <button type="submit" className="btn btn-primary">Add agent</button>
           </form>
+          )}
 
           <div className="card">
             <h3 className="card-title">Agents</h3>
@@ -109,10 +113,14 @@ export default function AgentConsolePage() {
                     {a.lastEscalationAt && ` · last: ${new Date(a.lastEscalationAt).toLocaleString('en-GB')}`}
                   </small>
                 </span>
-                <button onClick={() => toggleAvailable(a)} className="btn btn-outline btn-sm">
-                  {a.available ? 'Set unavailable' : 'Set available'}
-                </button>
-                <button onClick={() => removeAgent(a._id)} className="btn-icon" title="Remove agent">✕</button>
+                {manager && (
+                  <>
+                    <button onClick={() => toggleAvailable(a)} className="btn btn-outline btn-sm">
+                      {a.available ? 'Set unavailable' : 'Set available'}
+                    </button>
+                    <button onClick={() => removeAgent(a._id)} className="btn-icon" title="Remove agent">✕</button>
+                  </>
+                )}
               </div>
             ))}
             {!agents.length && <p className="muted" style={{ margin: 0 }}>No agents yet. Add one to receive escalated calls.</p>}

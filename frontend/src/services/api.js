@@ -29,8 +29,9 @@ export const login    = (data) => api.post('/auth/login',    data);
 export const register = (data) => api.post('/auth/register', data);
 export const getMe    = ()     => api.get('/auth/me');
 export const updateMe = (data) => api.put('/auth/me', data);
-export const getTeam          = ()     => api.get('/auth/team');
-export const createTeamMember = (data) => api.post('/auth/team', data);
+export const getTeam          = ()      => api.get('/auth/team');
+export const createTeamMember = (data)  => api.post('/auth/team', data);
+export const updateTeamMember = (id, d) => api.put(`/auth/team/${id}`, d);
 
 // ── Contacts ──────────────────────────────────────────────────────────────────
 // List endpoints are automatically scoped to the active project (topbar switcher).

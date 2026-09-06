@@ -5,8 +5,7 @@ import {
 
 // Code-split every page so the initial bundle stays small; the recharts-heavy
 // Reports/Dashboard pages benefit the most.
-const CallCenterPage      = lazy(() => import('./pages/CallCenterPage'));
-const CampaignPage        = lazy(() => import('./pages/CampaignPage'));
+const CallingPage         = lazy(() => import('./pages/CallingPage'));
 const AgentConsolePage    = lazy(() => import('./pages/AgentConsolePage'));
 const DataHubPage         = lazy(() => import('./pages/DataHubPage'));
 const ReportsPage         = lazy(() => import('./pages/ReportsPage'));
@@ -19,6 +18,7 @@ const OnboardingPage      = lazy(() => import('./pages/OnboardingPage'));
 
 import PageLoader from './components/PageLoader';
 import { getActiveProjectId, setActiveProject } from './services/projectStore';
+import { getRole, isManager } from './hooks/useRole';
 
 // ── Auth helpers ───────────────────────────────────────────────────────────────
 const isLoggedIn = () => !!localStorage.getItem('medcall_token');
@@ -29,8 +29,7 @@ function PrivateRoute({ children }) {
 
 // Manager-only routes: members are redirected to their console.
 function ManagerRoute({ children }) {
-  const role = localStorage.getItem('medcall_role') || 'manager';
-  return role === 'member' ? <Navigate to="/agents" replace /> : children;
+  return isManager() ? children : <Navigate to="/agents" replace />;
 }
 
 // ── Icons (feather-style, stroke = currentColor) ──────────────────────────────
@@ -189,15 +188,14 @@ const NAV = [
   {
     section: 'Overview',
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: 'home' },
+      { to: '/dashboard', label: 'Dashboard', icon: 'home', managerOnly: true },
     ],
   },
   {
     section: 'Operations',
     items: [
-      { to: '/call-center', label: 'Call Center',   icon: 'phone' },
-      { to: '/campaigns',   label: 'Campaigns',     icon: 'send', managerOnly: true },
-      { to: '/agents',      label: 'Agent Console', icon: 'headset' },
+      { to: '/calling', label: 'Calling',       icon: 'phone' },
+      { to: '/agents',  label: 'Agent Console', icon: 'headset' },
     ],
   },
   {
@@ -234,8 +232,8 @@ function pageTitle(pathname) {
 
 // ── Shell ──────────────────────────────────────────────────────────────────────
 function Shell({ children }) {
-  const role = localStorage.getItem('medcall_role') || 'manager';
-  const isManager = role !== 'member';
+  const role = getRole();
+  const manager = isManager();
   const location = useLocation();
 
   const readUser = () => {
@@ -307,7 +305,7 @@ function Shell({ children }) {
         </div>
 
         {NAV.map(group => {
-          const items = group.items.filter(i => isManager || !i.managerOnly);
+          const items = group.items.filter(i => manager || !i.managerOnly);
           if (!items.length) return null;
           return (
             <div key={group.section}>
@@ -365,7 +363,7 @@ function Shell({ children }) {
                   </span>
                 </div>
                 <NavLink to="/account" onClick={() => setMenuOpen(false)}>
-                  <Icon name="user" size={14} /> Account{isManager ? ' & Team' : ''}
+                  <Icon name="user" size={14} /> Account{manager ? ' & Team' : ''}
                 </NavLink>
                 <button onClick={logout} className="danger">
                   <Icon name="logout" size={14} /> Sign out
@@ -396,15 +394,17 @@ export default function App() {
             <Shell>
               <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/dashboard"   element={<DashboardPage />} />
-                <Route path="/call-center" element={<CallCenterPage />} />
-                <Route path="/campaigns"  element={<ManagerRoute><CampaignPage /></ManagerRoute>} />
+                <Route path="/dashboard"   element={<ManagerRoute><DashboardPage /></ManagerRoute>} />
+                <Route path="/calling"      element={<Navigate to="/calling/quick" replace />} />
+                <Route path="/calling/:tab" element={<CallingPage />} />
                 <Route path="/agents"     element={<AgentConsolePage />} />
                 <Route path="/data"       element={<Navigate to="/data/contacts" replace />} />
                 <Route path="/data/:tab"  element={<DataHubPage />} />
                 <Route path="/reports"      element={<Navigate to="/reports/analytics" replace />} />
                 <Route path="/reports/:tab" element={<ReportsPage />} />
                 {/* Legacy paths → new tabbed pages */}
+                <Route path="/call-center" element={<Navigate to="/calling/quick" replace />} />
+                <Route path="/campaigns"   element={<Navigate to="/calling/campaigns" replace />} />
                 <Route path="/contacts"   element={<Navigate to="/data/contacts" replace />} />
                 <Route path="/calls"      element={<Navigate to="/data/calls" replace />} />
                 <Route path="/data-entry" element={<Navigate to="/data/review" replace />} />
@@ -416,7 +416,7 @@ export default function App() {
                 <Route path="/projects"   element={<ManagerRoute><ProjectsPage /></ManagerRoute>} />
                 <Route path="/projects/:id/settings" element={<ManagerRoute><ProjectSettingsPage /></ManagerRoute>} />
                 <Route path="/account"    element={<AccountPage />} />
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/" element={<Navigate to={isManager() ? '/dashboard' : '/agents'} replace />} />
               </Routes>
               </Suspense>
             </Shell>

@@ -1,0 +1,17 @@
+ ISSUES.md                               |  73 [32m++++++[m
+ backend/src/middleware/projectScope.js  |  28 [32m++[m
+ backend/src/routes/calls.js             |  40 [32m++[m[31m-[m
+ backend/src/routes/contacts.js          |  12 [32m+[m[31m-[m
+ backend/src/routes/scripts.js           |  19 [32m+[m[31m-[m
+ frontend/src/App.jsx                    | 452 [32m+++++++++++++++++++++++++[m[31m-------[m
+ frontend/src/components/PageLoader.jsx  |  13 [32m+[m
+ frontend/src/pages/AgentConsolePage.jsx | 141 [32m++++++++++[m
+ frontend/src/pages/CallCenterPage.jsx   | 437 [32m+++++++++++++[m[31m-----------------[m
+ frontend/src/pages/CallsPage.jsx        | 176 [32m++++[m[31m---------[m
+ frontend/src/pages/ContactsPage.jsx     | 163 [32m+++++++[m[31m-----[m
+ frontend/src/pages/DataHubPage.jsx      |  40 [32m+++[m
+ frontend/src/pages/OnboardingPage.jsx   | 365 [32m++++++++++++++++++++++++++[m
+ frontend/src/pages/ReportsPage.jsx      |  36 [32m+++[m
+ frontend/src/services/api.js            |  66 [32m++++[m[31m-[m
+ frontend/src/services/projectStore.js   |  35 [32m+++[m
+ 16 files changed, 1536 insertions(+), 560 deletions(-)

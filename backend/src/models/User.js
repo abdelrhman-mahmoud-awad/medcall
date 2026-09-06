@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema({
   role:     { type: String, enum: ['admin', 'agent', 'manager', 'member'], default: 'agent' },
   // Set on member accounts: the manager who created them
   manager:  { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  // Deactivated accounts cannot sign in (manager can toggle from Account & Team)
+  active:   { type: Boolean, default: true },
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {

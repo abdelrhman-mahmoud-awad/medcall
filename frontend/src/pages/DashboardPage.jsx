@@ -7,7 +7,7 @@ import { useSocket } from '../hooks/useSocket';
 import LeadScoreChart from '../components/LeadScoreChart';
 import LiveCallFeed from '../components/LiveCallFeed';
 import { CALL_STATUS, LEAD_LABEL } from '../components/CallDrawer';
-import api from '../services/api';
+import api, { getProjects, getProjectProgress } from '../services/api';
 
 const CAMPAIGN_BADGE = {
   draft: 'badge-gray', running: 'badge-blue', paused: 'badge-amber', completed: 'badge-green',
@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [calls,     setCalls]     = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [liveCalls, setLiveCalls] = useState([]);
+  const [targets,   setTargets]   = useState([]);   // per-project target progress
   const [error,     setError]     = useState('');
 
   const userName = (() => {
@@ -54,6 +55,17 @@ export default function DashboardPage() {
       setCalls(c.data.calls || c.data || []);
       setCampaigns(cp.data || []);
     }).catch(() => setError('Failed to load the dashboard.'));
+
+    // Target progress bars — projects with a calls/forms target set
+    getProjects().then(async (r) => {
+      const list = (r.data || []).slice(0, 4);
+      const rows = await Promise.all(list.map(p =>
+        getProjectProgress(p._id)
+          .then(x => ({ id: p._id, name: p.name, ...x.data }))
+          .catch(() => null)
+      ));
+      setTargets(rows.filter(Boolean));
+    }).catch(() => {});
   }, []);
 
   if (error)    return <div className="page"><div className="alert alert-err">{error}</div></div>;
@@ -72,10 +84,53 @@ export default function DashboardPage() {
           <p className="page-sub">Overview of your calls, leads, and campaigns</p>
         </div>
         <div className="page-actions">
-          <Link to="/campaigns" className="btn btn-outline">New campaign</Link>
-          <Link to="/call-center" className="btn btn-primary">Start calling</Link>
+          <Link to="/calling/campaigns" className="btn btn-outline">New campaign</Link>
+          <Link to="/calling/quick" className="btn btn-primary">Start calling</Link>
         </div>
       </div>
+
+      {/* ── Project targets ── */}
+      {targets.some(t => (t.targets?.calls || 0) > 0 || (t.targets?.forms || 0) > 0) && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-head">
+            <h3 className="card-title">Project targets</h3>
+            <Link to="/projects" className="btn btn-ghost btn-sm">Projects →</Link>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
+            {targets
+              .filter(t => (t.targets?.calls || 0) > 0 || (t.targets?.forms || 0) > 0)
+              .map(t => (
+                <div key={t.id}>
+                  <b style={{ fontSize: 13, display: 'block', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {t.name}
+                  </b>
+                  {(t.targets?.calls || 0) > 0 && (
+                    <div style={{ marginBottom: 8 }}>
+                      <div className="progress-track">
+                        <div className="progress-fill" style={{ width: `${t.totals?.callsPct ?? 0}%` }} />
+                      </div>
+                      <div className="progress-meta" style={{ marginTop: 3 }}>
+                        <span>{t.totals?.calls ?? 0} / {t.targets.calls} calls</span>
+                        <span>{t.totals?.callsPct ?? 0}%</span>
+                      </div>
+                    </div>
+                  )}
+                  {(t.targets?.forms || 0) > 0 && (
+                    <div>
+                      <div className="progress-track">
+                        <div className="progress-fill" style={{ width: `${t.totals?.formsPct ?? 0}%`, background: 'var(--info)' }} />
+                      </div>
+                      <div className="progress-meta" style={{ marginTop: 3 }}>
+                        <span>{t.totals?.forms ?? 0} / {t.targets.forms} forms</span>
+                        <span>{t.totals?.formsPct ?? 0}%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* ── KPI row ── */}
       <div className="kpi-grid">
@@ -92,7 +147,7 @@ export default function DashboardPage() {
         <div className="card">
           <div className="card-head">
             <h3 className="card-title">Calls — last 14 days</h3>
-            <Link to="/analytics" className="btn btn-ghost btn-sm">Full analytics →</Link>
+            <Link to="/reports/analytics" className="btn btn-ghost btn-sm">Full analytics →</Link>
           </div>
           <ResponsiveContainer width="100%" height={240}>
             <AreaChart data={timeline}>
@@ -123,7 +178,7 @@ export default function DashboardPage() {
         <div className="card" style={{ padding: 0 }}>
           <div className="card-head" style={{ padding: '16px 20px 0', marginBottom: 10 }}>
             <h3 className="card-title">Recent calls</h3>
-            <Link to="/calls" className="btn btn-ghost btn-sm">View all →</Link>
+            <Link to="/data/calls" className="btn btn-ghost btn-sm">View all →</Link>
           </div>
           <div className="table-wrap">
             <table className="table">
@@ -146,7 +201,7 @@ export default function DashboardPage() {
                 })}
                 {!calls.length && (
                   <tr><td colSpan={5} className="empty-cell">
-                    No calls yet — start one from the <Link to="/call-center">Call Center</Link>.
+                    No calls yet — start one from the <Link to="/calling/quick">Calling page</Link>.
                   </td></tr>
                 )}
               </tbody>
@@ -158,7 +213,7 @@ export default function DashboardPage() {
           <div className="card">
             <div className="card-head">
               <h3 className="card-title">Campaigns</h3>
-              <Link to="/campaigns" className="btn btn-ghost btn-sm">Manage →</Link>
+              <Link to="/calling/campaigns" className="btn btn-ghost btn-sm">Manage →</Link>
             </div>
             {topCampaigns.map(c => {
               const pct = c.totalCalls ? Math.round((c.completedCalls / c.totalCalls) * 100) : 0;

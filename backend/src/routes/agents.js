@@ -1,14 +1,15 @@
 /**
  * routes/agents.js — manage human agents for call escalation.
  *
- * GET    /api/agents        list agents
- * POST   /api/agents        create an agent
- * PUT    /api/agents/:id    update an agent (e.g. toggle availability)
- * DELETE /api/agents/:id    remove an agent
+ * GET    /api/agents        list agents                                    (both)
+ * POST   /api/agents        create an agent                                (manager)
+ * PUT    /api/agents/:id    update an agent (e.g. toggle availability)     (manager)
+ * DELETE /api/agents/:id    remove an agent                                (manager)
  */
-const router = require('express').Router();
-const auth   = require('../middleware/auth');
-const Agent  = require('../models/Agent');
+const router         = require('express').Router();
+const auth           = require('../middleware/auth');
+const requireManager = require('../middleware/requireManager');
+const Agent          = require('../models/Agent');
 
 // GET /api/agents
 router.get('/', auth, async (req, res) => {
@@ -21,7 +22,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // POST /api/agents
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, requireManager, async (req, res) => {
   try {
     const { name, phone, email } = req.body;
     if (!name || !phone) {
@@ -35,7 +36,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // PUT /api/agents/:id
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, requireManager, async (req, res) => {
   try {
     const { name, phone, email, available } = req.body;
     const agent = await Agent.findByIdAndUpdate(
@@ -54,7 +55,7 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // DELETE /api/agents/:id
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, requireManager, async (req, res) => {
   try {
     const agent = await Agent.findByIdAndDelete(req.params.id);
     if (!agent) return res.status(404).json({ error: 'Agent not found' });
