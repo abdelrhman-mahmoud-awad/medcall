@@ -1,298 +1,235 @@
 import { useState, useEffect, useRef } from 'react';
 import { getContacts, getScripts, initiateCall, getCalls } from '../services/api';
+import { onProjectChange } from '../services/projectStore';
+import CallDrawer, { CALL_STATUS, LEAD_LABEL, formatDuration } from '../components/CallDrawer';
 
-// ── Status badge ───────────────────────────────────────────────────────────────
-const statusColors = {
-  initiated:   { bg: '#e8f4ff', color: '#1a73e8', label: 'جارٍ الاتصال' },
-  'in-progress':{ bg: '#fff8e1', color: '#f57c00', label: 'قيد التشغيل' },
-  completed:   { bg: '#e8f5e9', color: '#2e7d32', label: 'مكتمل' },
-  escalated:   { bg: '#fce4ec', color: '#c62828', label: 'محوّل لإنساني' },
-  failed:      { bg: '#f5f5f5', color: '#616161', label: 'فشل' },
-  'no-answer': { bg: '#f5f5f5', color: '#616161', label: 'لا رد' },
-};
-
-const labelColors = {
-  hot:  { bg: '#fce4ec', color: '#c62828' },
-  warm: { bg: '#fff3e0', color: '#e65100' },
-  cold: { bg: '#e3f2fd', color: '#1565c0' },
-};
-
-function Badge({ text, style }) {
-  return (
-    <span style={{
-      display: 'inline-block',
-      padding: '2px 10px',
-      borderRadius: 12,
-      fontSize: 12,
-      fontWeight: 600,
-      ...style,
-    }}>{text}</span>
-  );
-}
-
-// ── Single call log row ────────────────────────────────────────────────────────
-function CallRow({ call, onClick }) {
-  const st  = statusColors[call.status] || statusColors.failed;
-  const lb  = labelColors[call.leadLabel] || labelColors.cold;
-  const dur = call.durationSec
-    ? `${Math.floor(call.durationSec / 60)}:${String(call.durationSec % 60).padStart(2, '0')}`
-    : '—';
-
-  return (
-    <tr
-      onClick={() => onClick(call)}
-      style={{ cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
-    >
-      <td style={td}>{call.contact?.name || '—'}</td>
-      <td style={td}>{call.contact?.type === 'physician' ? 'طبيب' : 'صيدلاني'}</td>
-      <td style={td}>{call.script?.drugName || '—'}</td>
-      <td style={td}><Badge text={st.label} style={{ bg: st.bg, color: st.color, background: st.bg }} /></td>
-      <td style={td}><Badge text={call.leadLabel || 'cold'} style={{ background: lb.bg, color: lb.color }} /></td>
-      <td style={td}>{call.leadScore != null ? `${call.leadScore}%` : '—'}</td>
-      <td style={td}>{dur}</td>
-      <td style={td}>{new Date(call.createdAt).toLocaleString('ar-EG')}</td>
-    </tr>
-  );
-}
-
-const td = { padding: '10px 12px', fontSize: 13 };
-const th = { padding: '10px 12px', fontSize: 12, fontWeight: 600, color: '#666', borderBottom: '2px solid #eee', textAlign: 'right' };
-
-// ── Call detail drawer ─────────────────────────────────────────────────────────
-function CallDetail({ call, onClose }) {
-  if (!call) return null;
-  return (
-    <div style={{
-      position: 'fixed', top: 0, right: 0, bottom: 0, width: 480,
-      background: '#fff', boxShadow: '-4px 0 20px rgba(0,0,0,.12)',
-      zIndex: 100, display: 'flex', flexDirection: 'column',
-    }}>
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>تفاصيل المكالمة</h3>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
-      </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-        <p><strong>جهة الاتصال:</strong> {call.contact?.name}</p>
-        <p><strong>الدواء:</strong> {call.script?.drugName}</p>
-        <p><strong>النتيجة:</strong> {call.leadLabel} — {call.leadScore}%</p>
-        <p><strong>المدة:</strong> {call.durationSec ? `${call.durationSec} ثانية` : '—'}</p>
-
-        {call.responses?.length > 0 && (
-          <>
-            <h4 style={{ marginTop: 20, marginBottom: 8 }}>إجابات السكريبت</h4>
-            {call.responses.map((r, i) => (
-              <div key={i} style={{ background: '#f8f9fa', borderRadius: 8, padding: 12, marginBottom: 8 }}>
-                <p style={{ margin: '0 0 4px', fontSize: 12, color: '#888' }}>{r.questionText}</p>
-                <p style={{ margin: '0 0 4px', fontWeight: 500 }}>{r.answer || '—'}</p>
-                <Badge text={r.sentiment || 'unclear'} style={{
-                  background: r.sentiment === 'positive' ? '#e8f5e9' : r.sentiment === 'negative' ? '#fce4ec' : '#f5f5f5',
-                  color:      r.sentiment === 'positive' ? '#2e7d32' : r.sentiment === 'negative' ? '#c62828' : '#616161',
-                }} />
-              </div>
-            ))}
-          </>
-        )}
-
-        {call.transcript && (
-          <>
-            <h4 style={{ marginTop: 20, marginBottom: 8 }}>نص المكالمة</h4>
-            <div style={{ background: '#f8f9fa', borderRadius: 8, padding: 12, fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.8, direction: 'rtl' }}>
-              {call.transcript}
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function CallCenterPage() {
-  const [contacts, setContacts]       = useState([]);
-  const [scripts,  setScripts]        = useState([]);
-  const [calls,    setCalls]          = useState([]);
-  const [selectedCall, setSelectedCall] = useState(null);
+  const [contacts, setContacts] = useState([]);
+  const [scripts,  setScripts]  = useState([]);
+  const [calls,    setCalls]    = useState([]);
+  const [selected, setSelected] = useState(null);
 
-  const [form, setForm] = useState({ contactId: '', scriptId: '' });
-  const [calling, setCalling]   = useState(false);
-  const [callResult, setResult] = useState(null);
-  const [error, setError]       = useState('');
-  const [filter, setFilter]     = useState('');
+  const [form, setForm]       = useState({ contactIds: [], scriptId: '' });
+  const [calling, setCalling] = useState(false);
+  const [results, setResults] = useState(null);    // { started: [], failed: [] }
+  const [liveSids, setLiveSids] = useState([]);    // Twilio SIDs still in flight
+  const [error, setError]     = useState('');
+  const [filter, setFilter]   = useState('');
+  const [contactFilter, setContactFilter] = useState('');
 
   const pollRef = useRef(null);
 
+  const loadAll = () =>
+    Promise.all([getContacts({ limit: 200 }), getScripts(), getCalls({ limit: 100 })])
+      .then(([c, s, cl]) => {
+        setContacts(c.data.contacts || []);
+        setScripts(s.data || []);
+        setCalls(cl.data.calls || []);
+      });
+
   useEffect(() => {
-    Promise.all([
-      getContacts({ limit: 200 }),
-      getScripts(),
-      getCalls({ limit: 100 }),
-    ]).then(([c, s, cl]) => {
-      setContacts(c.data.contacts || []);
-      setScripts(s.data || []);
-      setCalls(cl.data.calls || []);
+    loadAll();
+    // Re-fetch when the topbar project switcher changes the active project
+    return onProjectChange(() => {
+      setForm(f => ({ ...f, contactIds: [] }));   // selection may no longer be visible
+      loadAll();
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Poll for call updates every 5s when a call is in progress
+  // Poll for updates every 5s while any launched call is live
+  const isPolling = liveSids.length > 0;
   useEffect(() => {
-    if (callResult?.callSid) {
-      pollRef.current = setInterval(async () => {
-        const res = await getCalls({ limit: 100 });
-        setCalls(res.data.calls || []);
-        const thisCall = res.data.calls?.find(c => c.twilioCallSid === callResult.callSid);
-        if (thisCall && ['completed','escalated','failed','no-answer'].includes(thisCall.status)) {
-          clearInterval(pollRef.current);
-        }
-      }, 5000);
-    }
+    if (!isPolling) return;
+    pollRef.current = setInterval(async () => {
+      const res = await getCalls({ limit: 100 });
+      const list = res.data.calls || [];
+      setCalls(list);
+      const finished = new Set(
+        list.filter(c => ['completed', 'escalated', 'failed', 'no-answer'].includes(c.status))
+            .map(c => c.twilioCallSid)
+      );
+      setLiveSids(sids => sids.filter(s => !finished.has(s)));
+    }, 5000);
     return () => clearInterval(pollRef.current);
-  }, [callResult]);
+  }, [isPolling]);
 
+  const toggleContact = (id) => setForm(f => ({
+    ...f,
+    contactIds: f.contactIds.includes(id)
+      ? f.contactIds.filter(x => x !== id)
+      : [...f.contactIds, id],
+  }));
+
+  // Fire all selected calls in parallel — each gets its own Twilio call + session
   const handleCall = async (e) => {
     e.preventDefault();
-    setError('');
-    setResult(null);
+    setError(''); setResults(null);
+    if (!form.contactIds.length) { setError('Select at least one contact.'); return; }
     setCalling(true);
-    try {
-      const res = await initiateCall(form);
-      setResult(res.data);
-      const freshCalls = await getCalls({ limit: 100 });
-      setCalls(freshCalls.data.calls || []);
-    } catch (err) {
-      setError(err.response?.data?.error || 'فشل بدء المكالمة');
-    } finally {
-      setCalling(false);
-    }
+
+    const targets = form.contactIds.map(id => ({
+      id, name: contacts.find(c => c._id === id)?.name || 'Unknown',
+    }));
+    const settled = await Promise.allSettled(
+      targets.map(t => initiateCall({ contactId: t.id, scriptId: form.scriptId }))
+    );
+
+    const started = [], failed = [];
+    settled.forEach((r, i) => {
+      if (r.status === 'fulfilled') started.push({ name: targets[i].name, callSid: r.value.data.callSid });
+      else failed.push({ name: targets[i].name, error: r.reason?.response?.data?.error || 'Failed to start' });
+    });
+    setResults({ started, failed });
+    if (started.length) setLiveSids(sids => [...sids, ...started.map(s => s.callSid)]);
+
+    const fresh = await getCalls({ limit: 100 });
+    setCalls(fresh.data.calls || []);
+    setCalling(false);
   };
 
-  const filteredCalls = calls.filter(c =>
+  const visibleContacts = contacts.filter(c =>
+    !contactFilter ||
+    c.name?.toLowerCase().includes(contactFilter.toLowerCase()) ||
+    c.phone?.includes(contactFilter) ||
+    c.city?.toLowerCase().includes(contactFilter.toLowerCase())
+  );
+
+  const filtered = calls.filter(c =>
     !filter ||
-    c.contact?.name?.includes(filter) ||
-    c.script?.drugName?.includes(filter) ||
+    c.contact?.name?.toLowerCase().includes(filter.toLowerCase()) ||
+    c.script?.drugName?.toLowerCase().includes(filter.toLowerCase()) ||
     c.leadLabel === filter ||
     c.status === filter
   );
 
   return (
-    <div style={{ padding: 24, direction: 'rtl', fontFamily: 'Cairo, Segoe UI, sans-serif', maxWidth: 1100, margin: '0 auto' }}>
-      <h2 style={{ marginBottom: 24, fontSize: 22 }}>مركز المكالمات</h2>
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h2 className="page-title">Call Center</h2>
+          <p className="page-sub">Launch AI-assisted research calls and monitor live outcomes</p>
+        </div>
+      </div>
 
-      {/* ── Initiate Call Form ── */}
-      <div style={{ background: '#fff', borderRadius: 12, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,.06)', marginBottom: 24 }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>بدء مكالمة جديدة</h3>
-        <form onSubmit={handleCall} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={labelStyle}>جهة الاتصال</label>
-            <select
-              value={form.contactId}
-              onChange={e => setForm(f => ({ ...f, contactId: e.target.value }))}
-              required style={selectStyle}
-            >
-              <option value="">اختر طبيب أو صيدلاني...</option>
-              {contacts.map(c => (
-                <option key={c._id} value={c._id}>
-                  {c.name} ({c.type === 'physician' ? 'طبيب' : 'صيدلاني'}) — {c.phone}
-                </option>
-              ))}
-            </select>
+      {/* New call(s) */}
+      <div className="card">
+        <h3 className="card-title">Start new calls</h3>
+        <form onSubmit={handleCall}>
+          <div className="form-row">
+            <div style={{ flex: 2, minWidth: 260 }}>
+              <label className="label">
+                Contacts <span className="muted">({form.contactIds.length} selected — calls run in parallel)</span>
+              </label>
+              <input className="input" placeholder="Search by name, phone, or city…" value={contactFilter}
+                     onChange={e => setContactFilter(e.target.value)} style={{ marginBottom: 8 }} />
+              <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: 8 }}>
+                {visibleContacts.map(c => (
+                  <label key={c._id} className="check" style={{ display: 'flex', padding: '3px 0' }}>
+                    <input type="checkbox" checked={form.contactIds.includes(c._id)}
+                           onChange={() => toggleContact(c._id)} />
+                    {c.name} ({c.type === 'physician' ? 'Physician' : 'Pharmacist'}) — {c.phone}
+                    {c.doNotCall && <span className="badge badge-red" style={{ marginLeft: 6 }}>DNC</span>}
+                  </label>
+                ))}
+                {!visibleContacts.length && <p className="muted" style={{ margin: 0 }}>No matching contacts.</p>}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button type="button" className="btn btn-ghost btn-sm"
+                        onClick={() => setForm(f => ({
+                          ...f,
+                          contactIds: [...new Set([...f.contactIds, ...visibleContacts.filter(c => !c.doNotCall).map(c => c._id)])],
+                        }))}>
+                  Select all shown
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm"
+                        onClick={() => setForm(f => ({ ...f, contactIds: [] }))}>
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <div style={{ flex: 2, minWidth: 240 }}>
+              <label className="label">Script / drug</label>
+              <select className="select" required value={form.scriptId}
+                      onChange={e => setForm(f => ({ ...f, scriptId: e.target.value }))}>
+                <option value="">Select a script…</option>
+                {scripts.map(s => (
+                  <option key={s._id} value={s._id}>{s.name} — {s.drugName}</option>
+                ))}
+              </select>
+              <button type="submit" disabled={calling || !form.contactIds.length}
+                      className="btn btn-primary" style={{ marginTop: 12, width: '100%' }}>
+                {calling
+                  ? 'Dialing…'
+                  : form.contactIds.length > 1
+                  ? `Start ${form.contactIds.length} parallel calls`
+                  : 'Start call'}
+              </button>
+              {liveSids.length > 0 && (
+                <p className="muted" style={{ marginTop: 8, marginBottom: 0 }}>
+                  <span className="dot" style={{ background: 'var(--danger)', marginRight: 6 }} />
+                  {liveSids.length} call{liveSids.length > 1 ? 's' : ''} live — the log refreshes every 5 seconds.
+                </p>
+              )}
+            </div>
           </div>
-
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={labelStyle}>السكريبت / الدواء</label>
-            <select
-              value={form.scriptId}
-              onChange={e => setForm(f => ({ ...f, scriptId: e.target.value }))}
-              required style={selectStyle}
-            >
-              <option value="">اختر سكريبت...</option>
-              {scripts.map(s => (
-                <option key={s._id} value={s._id}>{s.name} — {s.drugName}</option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            disabled={calling}
-            style={{
-              background: calling ? '#ccc' : '#1a73e8',
-              color: '#fff', border: 'none', borderRadius: 8,
-              padding: '10px 28px', fontSize: 14, cursor: calling ? 'not-allowed' : 'pointer',
-              fontFamily: 'inherit', fontWeight: 600,
-            }}
-          >
-            {calling ? '⏳ جارٍ الاتصال...' : '📞 ابدأ المكالمة'}
-          </button>
         </form>
 
-        {error && (
-          <div style={{ marginTop: 12, padding: '10px 14px', background: '#fce4ec', borderRadius: 8, color: '#c62828', fontSize: 13 }}>
-            ❌ {error}
+        {error && <div className="alert alert-err" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+        {results?.started.length > 0 && (
+          <div className="alert alert-ok" style={{ marginTop: 14, marginBottom: 0 }}>
+            <strong>{results.started.length} call{results.started.length > 1 ? 's' : ''} started:</strong>{' '}
+            {results.started.map(s => s.name).join(', ')}
           </div>
         )}
-
-        {callResult && (
-          <div style={{ marginTop: 12, padding: '12px 16px', background: '#e8f5e9', borderRadius: 8, fontSize: 13 }}>
-            <strong>✅ تم بدء المكالمة!</strong>
-            <div style={{ marginTop: 4, color: '#555' }}>
-              Call SID: <code>{callResult.callSid}</code> — الحالة: {callResult.status}
-            </div>
-            <div style={{ marginTop: 4, color: '#888', fontSize: 12 }}>
-              سيتم تحديث السجل تلقائياً كل 5 ثواني...
-            </div>
+        {results?.failed.length > 0 && (
+          <div className="alert alert-err" style={{ marginTop: 14, marginBottom: 0 }}>
+            <strong>{results.failed.length} failed:</strong>{' '}
+            {results.failed.map(f => `${f.name} (${f.error})`).join(' · ')}
           </div>
         )}
       </div>
 
-      {/* ── Call Log Table ── */}
-      <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,.06)' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>سجل المكالمات</h3>
-          <input
-            placeholder="بحث بالاسم أو الدواء..."
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, width: 200 }}
-          />
+      {/* Call log */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="card-head" style={{ padding: '16px 20px', marginBottom: 0 }}>
+          <h3 className="card-title">Recent calls <span className="muted">({filtered.length})</span></h3>
+          <input className="input" style={{ width: 240 }} placeholder="Filter by name or drug…"
+                 value={filter} onChange={e => setFilter(e.target.value)} />
         </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="table-wrap">
+          <table className="table">
             <thead>
-              <tr>
-                {['الاسم','النوع','الدواء','الحالة','التصنيف','النتيجة','المدة','التاريخ'].map(h => (
-                  <th key={h} style={th}>{h}</th>
-                ))}
-              </tr>
+              <tr>{['Contact', 'Type', 'Drug', 'Status', 'Lead', 'Score', 'Duration', 'Date'].map(h => (
+                <th key={h}>{h}</th>
+              ))}</tr>
             </thead>
             <tbody>
-              {filteredCalls.length === 0 ? (
-                <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#999' }}>
-                    لا توجد مكالمات بعد. ابدأ مكالمة من الأعلى!
-                  </td>
-                </tr>
-              ) : filteredCalls.map(c => (
-                <CallRow key={c._id} call={c} onClick={setSelectedCall} />
-              ))}
+              {filtered.length === 0 ? (
+                <tr><td colSpan={8} className="empty-cell">No calls yet. Start one from the form above.</td></tr>
+              ) : filtered.map(c => {
+                const st = CALL_STATUS[c.status] || CALL_STATUS.failed;
+                const lb = LEAD_LABEL[c.leadLabel] || LEAD_LABEL.cold;
+                return (
+                  <tr key={c._id} className="clickable" onClick={() => setSelected(c)}>
+                    <td style={{ fontWeight: 600 }}>{c.contact?.name || '—'}</td>
+                    <td>{c.contact?.type === 'physician' ? 'Physician' : 'Pharmacist'}</td>
+                    <td>{c.script?.drugName || '—'}</td>
+                    <td><span className={`badge ${st.cls}`}>{st.label}</span></td>
+                    <td><span className={`badge ${lb.cls}`}>{lb.label}</span></td>
+                    <td>{c.leadScore != null ? `${c.leadScore}%` : '—'}</td>
+                    <td>{formatDuration(c.durationSec)}</td>
+                    <td className="muted" style={{ fontSize: 12.5 }}>{new Date(c.createdAt).toLocaleString('en-GB')}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* ── Call Detail Drawer ── */}
-      {selectedCall && (
-        <>
-          <div
-            onClick={() => setSelectedCall(null)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.25)', zIndex: 99 }}
-          />
-          <CallDetail call={selectedCall} onClose={() => setSelectedCall(null)} />
-        </>
-      )}
+      {selected && <CallDrawer call={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }
-
-const labelStyle  = { display: 'block', fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 };
-const selectStyle = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit' };

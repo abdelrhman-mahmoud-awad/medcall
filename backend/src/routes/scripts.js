@@ -1,11 +1,18 @@
-const router = require('express').Router();
-const auth   = require('../middleware/auth');
-const Script = require('../models/Script');
+const router       = require('express').Router();
+const auth         = require('../middleware/auth');
+const projectScope = require('../middleware/projectScope');
+const Script       = require('../models/Script');
 
-// GET /api/scripts
-router.get('/', auth, async (req, res) => {
+// GET /api/scripts — supports optional ?project=<id>.
+// Scripts have no project field; a project binds ONE script (Project.script).
+// When scoped and the project has a bound script, return just that script.
+// When the project has no bound script, fall back to all active scripts
+// (mirrors the global-fallback behaviour of the call pipeline).
+router.get('/', auth, projectScope, async (req, res) => {
   try {
-    const scripts = await Script.find({ active: true }).sort({ createdAt: -1 });
+    const filter = { active: true };
+    if (req.scopeProject?.script) filter._id = req.scopeProject.script;
+    const scripts = await Script.find(filter).sort({ createdAt: -1 });
     res.json(scripts);
   } catch (err) {
     res.status(500).json({ error: err.message });

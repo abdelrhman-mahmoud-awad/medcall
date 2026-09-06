@@ -1,15 +1,29 @@
-const router  = require('express').Router();
-const auth    = require('../middleware/auth');
-const CallLog = require('../models/CallLog');
+const router       = require('express').Router();
+const auth         = require('../middleware/auth');
+const projectScope = require('../middleware/projectScope');
+const CallLog      = require('../models/CallLog');
+const Contact      = require('../models/Contact');
 
-// GET /api/calls
-router.get('/', auth, async (req, res) => {
+// CallLog has no direct project ref — scope via the project's contacts.
+const projectContactIds = (projectId) =>
+  Contact.find({ project: projectId }).distinct('_id');
+
+// GET /api/calls — supports optional ?project=<id> scoping (via contacts)
+router.get('/', auth, projectScope, async (req, res) => {
   try {
     const { status, label, contactId, page = 1, limit = 50 } = req.query;
     const filter = {};
     if (status)    filter.status    = status;
     if (label)     filter.leadLabel = label;
     if (contactId) filter.contact   = contactId;
+    if (req.scopeProject) {
+      const ids = await projectContactIds(req.scopeProject._id);
+      // If contactId was also passed, $in keeps the stricter contact filter.
+      filter.contact = contactId ? contactId : { $in: ids };
+      if (contactId && !ids.some(id => String(id) === String(contactId))) {
+        return res.json({ calls: [], total: 0, page: Number(page), pages: 0 });
+      }
+    }
 
     const total = await CallLog.countDocuments(filter);
     const calls = await CallLog.find(filter)
@@ -38,14 +52,18 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// GET /api/calls/stats/summary  — dashboard numbers
-router.get('/stats/summary', auth, async (req, res) => {
+// GET /api/calls/stats/summary  — dashboard numbers (optional ?project=<id>)
+router.get('/stats/summary', auth, projectScope, async (req, res) => {
   try {
+    const base = {};
+    if (req.scopeProject) {
+      base.contact = { $in: await projectContactIds(req.scopeProject._id) };
+    }
     const [total, warm, hot, escalated] = await Promise.all([
-      CallLog.countDocuments(),
-      CallLog.countDocuments({ leadLabel: 'warm' }),
-      CallLog.countDocuments({ leadLabel: 'hot' }),
-      CallLog.countDocuments({ escalated: true }),
+      CallLog.countDocuments(base),
+      CallLog.countDocuments({ ...base, leadLabel: 'warm' }),
+      CallLog.countDocuments({ ...base, leadLabel: 'hot' }),
+      CallLog.countDocuments({ ...base, escalated: true }),
     ]);
     res.json({ total, warm, hot, escalated, cold: total - warm - hot });
   } catch (err) {

@@ -1,0 +1,20 @@
+{
+  "_comment": "THE fixed data-entry form. Every call asks these same questions and every form has these same fields. Drives AI extraction, the review page, the payload formatter, and the Chrome extension mapping. Adjust keys/options to match your real form EXACTLY.",
+  "fields": [
+    { "key": "doctor_name",    "label": "Doctor Name",            "type": "text",     "source": "contact.name" },
+    { "key": "phone",          "label": "Phone",                  "type": "text",     "source": "contact.phone", "format": "+20XXXXXXXXXX" },
+    { "key": "contact_type",   "label": "Contact Type",           "type": "select",   "source": "contact.type", "options": ["physician", "pharmacist"] },
+    { "key": "specialty",      "label": "Specialty",              "type": "text",     "source": "contact.specialty" },
+    { "key": "city",           "label": "City",                   "type": "text",     "source": "contact.city" },
+
+    { "key": "aware_of_drug",  "label": "Aware of drug?",         "type": "radio",    "source": "transcript", "options": ["yes", "no"] },
+    { "key": "prescribing",    "label": "Prescribing frequency",  "type": "select",   "source": "transcript", "options": ["never", "rarely", "sometimes", "often"] },
+    { "key": "interested",     "label": "Interested in samples?", "type": "radio",    "source": "transcript", "options": ["yes", "no"] },
+
+    { "key": "lead_score",     "label": "Lead Score",             "type": "number",   "source": "call.leadScore" },
+    { "key": "lead_label",     "label": "Lead Label",             "type": "select",   "source": "call.leadLabel", "options": ["cold", "warm", "hot"] },
+    { "key": "notes",          "label": "Notes",                  "type": "textarea", "source": "transcript" },
+    { "key": "call_date",      "label": "Call Date",              "type": "date",     "source": "call.endedAt", "format": "YYYY-MM-DD" },
+    { "key": "recording_link", "label": "Recording Link",         "type": "text",     "source": "call.drive.recordingUrl" }
+  ]
+}

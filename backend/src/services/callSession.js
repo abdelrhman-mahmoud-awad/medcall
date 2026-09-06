@@ -123,6 +123,74 @@ class CallSession {
       lastCalledAt: endedAt,
     });
 
+    // ── Phase 2: real-time dashboard update + campaign stats ──
+    try {
+      const { emitCallUpdate, emitCampaignProgress } = require('./socketService');
+      const updatedLog = await CallLog.findById(this.callLogId).populate('contact script');
+      emitCallUpdate(updatedLog);
+
+      if (updatedLog.campaign) {
+        const Campaign = require('../models/Campaign');
+        const inc = { completedCalls: 1 };
+        if (label === 'hot')  inc.hotLeads  = 1;
+        if (label === 'warm') inc.warmLeads = 1;
+        if (label === 'cold') inc.coldLeads = 1;
+
+        const campaign = await Campaign.findByIdAndUpdate(
+          updatedLog.campaign, { $inc: inc }, { new: true }
+        );
+
+        if (campaign) {
+          // Rolling average score + auto-complete when all calls are done
+          const avgScore = Math.round(
+            ((campaign.avgScore * (campaign.completedCalls - 1)) + score) / campaign.completedCalls
+          );
+          const done = campaign.completedCalls >= campaign.totalCalls;
+          await Campaign.findByIdAndUpdate(campaign._id, {
+            avgScore,
+            ...(done ? { status: 'completed', completedAt: endedAt } : {}),
+          });
+          emitCampaignProgress(campaign._id, {
+            completedCalls: campaign.completedCalls,
+            totalCalls:     campaign.totalCalls,
+            hotLeads:       campaign.hotLeads,
+            warmLeads:      campaign.warmLeads,
+            coldLeads:      campaign.coldLeads,
+            avgScore,
+            status: done ? 'completed' : campaign.status,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('📡 Realtime/campaign update failed (non-fatal):', err.message);
+    }
+
+    // ── Phase 4: data-entry draft + Google Drive archive ──
+    try {
+      if (process.env.DRAFT_AUTO_GENERATE !== 'false') {
+        const { generateDraft } = require('./dataEntryService');
+        const populatedLog = await CallLog.findById(this.callLogId).populate('contact');
+        generateDraft(populatedLog).catch(err =>
+          console.warn('📝 Draft generation failed (non-fatal):', err.message));
+      }
+      const { enqueueArchive } = require('../queues/uploadQueue');
+      enqueueArchive(this.callLogId);
+    } catch (err) {
+      console.error('📁 Phase 4 hooks failed (non-fatal):', err.message);
+    }
+
+    // ── Phase 3: write the call result back to the Excel sheet ──
+    if (process.env.EXCEL_AUTO_SYNC === 'true') {
+      try {
+        const { updateRowForCall } = require('./excelService');
+        const savedLog = await CallLog.findById(this.callLogId);
+        const result   = await updateRowForCall(savedLog);
+        console.log('📊 Excel sync:', result);
+      } catch (err) {
+        console.error('📊 Excel sync failed (non-fatal):', err.message);
+      }
+    }
+
     sessions.delete(this.callSid);
   }
 

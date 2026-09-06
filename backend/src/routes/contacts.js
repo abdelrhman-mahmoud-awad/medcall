@@ -1,12 +1,14 @@
-const router  = require('express').Router();
-const auth    = require('../middleware/auth');
-const Contact = require('../models/Contact');
+const router       = require('express').Router();
+const auth         = require('../middleware/auth');
+const projectScope = require('../middleware/projectScope');
+const Contact      = require('../models/Contact');
 
-// GET /api/contacts
-router.get('/', auth, async (req, res) => {
+// GET /api/contacts — supports optional ?project=<id> scoping (Contact.project)
+router.get('/', auth, projectScope, async (req, res) => {
   try {
     const { type, city, search, page = 1, limit = 50 } = req.query;
     const filter = {};
+    if (req.scopeProject) filter.project = req.scopeProject._id;
     if (type)   filter.type = type;
     if (city)   filter.city = new RegExp(city, 'i');
     if (search) filter.$or = [

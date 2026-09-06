@@ -1,13 +1,56 @@
-
-> medcall-backend@0.1.0 dev
-> nodemon src/index.js
-
-[33m[nodemon] 3.1.14[39m
-[33m[nodemon] to restart at any time, enter `rs`[39m
-[33m[nodemon] watching path(s): *.*[39m
-[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
-[32m[nodemon] starting `node src/index.js`[39m
 ✅ MongoDB connected
+📞 Call worker started (max 5 concurrent calls)
+📁 Drive upload worker started
 🚀 MedCall backend running on http://localhost:5000
-Gemini transcription request failed; using fallback transcription: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
-Gemini conversation request failed; using fallback response: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+🔌 Client connected: J7-nsQc-3Q-N__O0AAAA
+🔌 Client disconnected: J7-nsQc-3Q-N__O0AAAA
+🔌 Client connected: lNPeppfezTDmITCYAAAB
+🔌 Client disconnected: lNPeppfezTDmITCYAAAB
+🔌 Client connected: oPaCbpXX5NZ4e7hcAAAC
+🔌 Client disconnected: oPaCbpXX5NZ4e7hcAAAC
+🔌 Client connected: oZZhvyYFXgcZ0B5sAAAD
+🔌 Client disconnected: oZZhvyYFXgcZ0B5sAAAD
+🔌 Client connected: eUiMyTLi5q8ggAVmAAAE
+🔌 Client disconnected: eUiMyTLi5q8ggAVmAAAE
+🔌 Client connected: dzNKsWBnxgrR2838AAAF
+🔌 Client disconnected: dzNKsWBnxgrR2838AAAF
+🔌 Client connected: rw0wZJjmnVTUsPKhAAAG
+🔌 Client disconnected: rw0wZJjmnVTUsPKhAAAG
+🔌 Client connected: KlckfTAY0PIuRGcXAAAH
+🔌 Client disconnected: KlckfTAY0PIuRGcXAAAH
+🔌 Client connected: wMzjGWNSfaajbaRGAAAI
+🔌 Client disconnected: wMzjGWNSfaajbaRGAAAI
+🔌 Client connected: v0IPktl0CxHSLW-kAAAJ
+🔌 Client disconnected: v0IPktl0CxHSLW-kAAAJ
+🔌 Client connected: HP34vUxNHuu1e7zGAAAK
+🔌 Client disconnected: HP34vUxNHuu1e7zGAAAK
+🔌 Client connected: t071zLDZMiwfk7l7AAAL
+🔌 Client disconnected: t071zLDZMiwfk7l7AAAL
+🔌 Client connected: KZVnLP9wVNzm71pCAAAM
+🔌 Client disconnected: KZVnLP9wVNzm71pCAAAM
+🔌 Client connected: I-M-475kOqI8OefrAAAN
+🔌 Client disconnected: I-M-475kOqI8OefrAAAN
+🔌 Client connected: Gp979SxZPkTDeuo_AAAO
+🔌 Client disconnected: Gp979SxZPkTDeuo_AAAO
+🔌 Client connected: 8-g29ciPFPXy3St_AAAP
+🔌 Client disconnected: 8-g29ciPFPXy3St_AAAP
+🔌 Client connected: 2CvpnsjeQaz2sARhAAAQ
+🔌 Client disconnected: 2CvpnsjeQaz2sARhAAAQ
+🔌 Client connected: kBkF1vVbvDiHvO0ZAAAR
+🔌 Client disconnected: kBkF1vVbvDiHvO0ZAAAR
+🔌 Client connected: nOj8JoF1niBB6oI7AAAS
+🔌 Client disconnected: nOj8JoF1niBB6oI7AAAS
+🔌 Client connected: ZYyxMNf0mJJjtwRIAAAT
+🔌 Client disconnected: ZYyxMNf0mJJjtwRIAAAT
+🔌 Client connected: NszXE2xKRZh6NI1AAAAU
+🔌 Client disconnected: NszXE2xKRZh6NI1AAAAU
+🔌 Client connected: bVFph8HDWXjPeC0WAAAV
+🔌 Client disconnected: bVFph8HDWXjPeC0WAAAV
+🔌 Client connected: Ab3ANBlP5f7icq8kAAAW
+🔌 Client disconnected: Ab3ANBlP5f7icq8kAAAW
+🔌 Client connected: T3_J4L7L5PDnjNyxAAAX
+🔌 Client disconnected: T3_J4L7L5PDnjNyxAAAX
+🔌 Client connected: 8i55ILzM3oXhJrJ6AAAY
+🔌 Client disconnected: 8i55ILzM3oXhJrJ6AAAY
+🔌 Client connected: dG-Xa6sNZV9r3vedAAAZ
+🔌 Client disconnected: dG-Xa6sNZV9r3vedAAAZ

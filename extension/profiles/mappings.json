@@ -1,0 +1,20 @@
+{
+  "_comment": "One profile per data-entry site. Since the form is always the same, map it once: CSS selector -> formSchema key. Replace 'dataentry.example.com' with your real site's hostname and selectors.",
+  "dataentry.example.com": {
+    "fields": {
+      "input[name='doctor_name']":    "doctor_name",
+      "input[name='phone']":          "phone",
+      "select[name='contact_type']":  "contact_type",
+      "input[name='specialty']":      "specialty",
+      "input[name='city']":           "city",
+      "input[name='aware']":          "aware_of_drug",
+      "select[name='prescribing']":   "prescribing",
+      "input[name='interested']":     "interested",
+      "input[name='lead_score']":     "lead_score",
+      "select[name='lead_label']":    "lead_label",
+      "textarea[name='notes']":       "notes",
+      "input[name='call_date']":      "call_date",
+      "input[name='recording_link']": "recording_link"
+    }
+  }
+}

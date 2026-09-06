@@ -1,0 +1,120 @@
+================================================================================
+MedCall AI — Project Overview
+================================================================================
+
+WHAT IT IS
+----------
+MedCall AI is an AI-powered phone-calling platform for pharmaceutical market
+research in Egypt. It automatically calls physicians and pharmacists, speaks
+to them in Egyptian Arabic, asks scripted research questions about a drug,
+records and transcribes the conversation, scores each contact as a lead, and
+turns the answers into structured data that ends up back in the team's Excel
+sheet, in external data-entry websites, and in AI-written market insights.
+
+The dashboard and all data are in English/Arabic UI; only the AI voice on the
+phone speaks Egyptian Arabic.
+
+TECH STACK
+----------
+- Backend:   Node.js + Express, MongoDB (Mongoose), Bull + Redis queues
+- Frontend:  React (Vite), Socket.io client, Recharts
+- Telephony: Twilio (outbound calls, recording, conference bridge)
+- AI:        Azure TTS (Egyptian Arabic voices), OpenAI Whisper (Arabic ASR),
+             GPT-4o (conversation driver), Gemini (verification, data
+             extraction, form formatting, market insights)
+- Extras:    Google Drive archival (service account), Chrome extension
+             (Manifest V3), ExcelJS import/export
+
+HOW A CALL WORKS (END TO END)
+-----------------------------
+1. Server initiates a Twilio call to the contact's phone.
+2. A consent line is played first ("this call is recorded..."); the contact's
+   yes/no is transcribed and saved as compliance evidence. A "no" ends the
+   call politely and flags the contact.
+3. Azure TTS speaks the greeting and the script's research questions in
+   Egyptian Arabic; the contact's answers are recorded by Twilio and
+   transcribed by Whisper.
+4. GPT-4o drives the conversation turn by turn, following the script and
+   extracting answers. It can escalate the call to a human agent via a
+   Twilio conference bridge.
+5. When the call ends: the lead is scored (0-100, cold/warm/hot), the full
+   transcript is saved, the Excel row is updated, the recording + consent +
+   transcript are archived to Google Drive, and an AI data-entry draft is
+   generated for human review.
+
+THE SIX PHASES
+--------------
+Phase 1 — Single-Call Pipeline
+  The core loop: dashboard (login, contacts, scripts, call center) → Twilio
+  call → Azure TTS speaks → Whisper transcribes → GPT-4o follows the script →
+  lead scored and saved to MongoDB. Scripts are stored per drug with typed,
+  weighted questions (open / yesno / scale / multiple).
+
+Phase 2 — Mass Calling & Real-Time Operations
+  Campaigns: pick a script + a batch of contacts and launch. A Bull/Redis
+  queue runs up to N concurrent calls. Socket.io pushes live call and
+  campaign progress to the dashboard. Human escalation bridges an active AI
+  call to a real agent. Analytics endpoints give KPIs, lead distributions,
+  and timelines. CSV contact import.
+
+Phase 3 — Excel as the Source of Truth
+  The team's existing .xlsx sheet becomes input AND output. Imports are
+  validated (Egyptian phone normalization, duplicates, missing data → rows
+  rejected with reasons). Changed data (phone/name/city) becomes a PENDING
+  change, never silently overwritten; a Gemini agent with Google Search
+  grounding verifies each change online (confirmed / contradicted /
+  not found) and a human approves or rejects. After every call the sheet is
+  updated in place: status, lead score, colored label, date, answers, summary.
+  Full results workbook downloadable anytime.
+
+Phase 4 — Compliance Archive & Zero-Typing Data Entry
+  Every call: consent gate + full dual-channel recording, archived to Google
+  Drive (recording.mp3, consent.json, transcript.txt) via a retryable upload
+  queue. Then the data-entry pipeline: Gemini extracts the form fields from
+  the transcript into a draft; a human reviews it side-by-side with the
+  transcript (edit, approve, reject — full audit trail); on approval an AI
+  formatter maps the data onto the fixed form schema (validated in code).
+  A Chrome extension ("MedCall Filler", API-key auth) lets reps fill any
+  external CRM / data-entry website with one click — it only ever sees
+  approved drafts, and the rep always presses submit themselves.
+
+Phase 5 — Projects, Teams, Targets & AI Market Insights
+  Multi-project, multi-user. Whoever registers is a MANAGER; managers create
+  projects, add MEMBER accounts under them, attach the contact sheet (.xlsx
+  upload or a link-shared Google Sheet), and set targets (completed calls +
+  entered forms). All work is attributed per member; a progress dashboard
+  shows totals and per-member breakdowns vs targets. An AI Market Insights
+  page has Gemini interpret the aggregated (anonymized) project data —
+  summary, key findings, market signals, segments, recommendations, risks,
+  and a data-quality caveat. Data is isolated per manager.
+
+Phase 6 — Per-Project Configuration
+  Everything that was global becomes per-project, with global fallbacks so
+  nothing breaks. Each project gets its OWN:
+    1. Call script & questions (bound to the project, auto-used on calls)
+    2. Form schema (editable field builder: key, label, type, options)
+    3. Consent line (per-project text + required on/off toggle)
+    4. Data-entry website (URL + CSS-selector → field-key mapping, served to
+       the extension by the API)
+  A 4-tab Project Settings page + creation wizard, a readiness checklist,
+  script↔schema coverage checks, and schema snapshots so old drafts survive
+  schema edits. The extension gains an "Open site" button and prefers the
+  API-served mapping over the static file.
+
+KEY SAFEGUARDS
+--------------
+- Human-in-the-loop everywhere: data changes, extracted drafts, and form
+  fills all require explicit human approval; the AI advises, people decide.
+- Consent stored as evidence (verdict, verbatim words, exact line played);
+  a "no" means the recording is deleted and the contact is never re-asked.
+- Validation gates: sheet rows, AI-extracted payloads, and form schemas are
+  all validated in code before anything ships.
+- Data isolation by manager/team; extension sees approved drafts only.
+- Fallback-first design: every failure (TTS, Drive, Excel write-back, AI)
+  degrades gracefully and never crashes the call pipeline.
+
+PLANNED NEXT (Phase 7 preview)
+------------------------------
+Fine-tuned TTS with a custom Egyptian-dialect voice, call scheduling with
+office hours and retry logic, private Google Sheets with live write-back,
+and a visual point-and-click field mapper for the extension.

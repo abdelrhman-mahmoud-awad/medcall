@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "MedCall Filler",
+  "version": "1.0.0",
+  "description": "Fill data-entry forms with human-approved MedCall call results in one click.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "MedCall Filler"
+  },
+  "background": { "service_worker": "background.js" },
+  "web_accessible_resources": [{
+    "resources": ["profiles/mappings.json"],
+    "matches": ["<all_urls>"]
+  }]
+}

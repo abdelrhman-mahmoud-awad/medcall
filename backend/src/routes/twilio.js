@@ -37,8 +37,9 @@ const getBaseUrl = (req) => {
   return 'https://medcall2025.loca.lt';
 };
 
-// ─── In-memory audio cache (MP3 buffers keyed by callSid_turnIndex) ──────────
-const audioCache = new Map();
+// ─── Shared audio cache (MP3 buffers keyed by callSid_turnIndex) ─────────────
+// Shared module so the Phase 2 campaign call worker can pre-cache greetings too.
+const audioCache = require('../services/audioCache');
 
 // ─── 1. Initiate an outbound call ─────────────────────────────────────────────
 // POST /api/twilio/call
@@ -46,17 +47,24 @@ const audioCache = new Map();
 router.post('/call', auth, async (req, res) => {
   try {
     const { contactId, scriptId } = req.body;
-    if (!contactId || !scriptId)
-      return res.status(400).json({ error: 'contactId and scriptId required' });
+    if (!contactId)
+      return res.status(400).json({ error: 'contactId required' });
 
-    const [contact, script] = await Promise.all([
-      Contact.findById(contactId),
-      Script.findById(scriptId),
-    ]);
-
+    const contact = await Contact.findById(contactId);
     if (!contact) return res.status(404).json({ error: 'Contact not found' });
-    if (!script)  return res.status(404).json({ error: 'Script not found' });
     if (contact.doNotCall) return res.status(400).json({ error: 'Contact is on DNC list' });
+
+    // Phase 6: no script picked → use the contact's project script automatically
+    let effectiveScriptId = scriptId;
+    if (!effectiveScriptId) {
+      const { configForContact } = require('../services/projectConfigService');
+      effectiveScriptId = (await configForContact(contactId)).scriptId;
+    }
+    if (!effectiveScriptId)
+      return res.status(400).json({ error: 'scriptId required (no script set on the contact\'s project)' });
+
+    const script = await Script.findById(effectiveScriptId);
+    if (!script) return res.status(404).json({ error: 'Script not found' });
 
     // Create call log entry (status = initiated)
     const callLog = await CallLog.create({
@@ -68,8 +76,10 @@ router.post('/call', auth, async (req, res) => {
     });
 
     // Pre-generate the greeting audio
+    // Unique temp key so parallel initiations don't collide in the session map
+    const tmpKey = `pending_${callLog._id}`;
     const tmpSession = session.create({
-      callSid:   'pending',
+      callSid:   tmpKey,
       contact,
       script,
       callLogId: callLog._id,
@@ -87,11 +97,17 @@ router.post('/call', auth, async (req, res) => {
       statusCallback: `${getBaseUrl(req)}/api/twilio/status`,
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       statusCallbackMethod: 'POST',
-      record: false,  // we record per-turn, not the whole call
+      // Phase 4: full-call recording (per-turn <Record> for ASR is separate)
+      ...(process.env.RECORD_CALLS === 'true' ? {
+        record: true,
+        recordingChannels: 'dual',
+        recordingStatusCallback: `${getBaseUrl(req)}/api/twilio/recording-complete`,
+        recordingStatusCallbackEvent: ['completed'],
+      } : { record: false }),
     });
 
     // Re-key the session with the real CallSid
-    session.remove('pending');
+    session.remove(tmpKey);
     const realSession = session.create({
       callSid:   call.sid,
       contact,
@@ -130,6 +146,35 @@ router.all('/twiml/greeting', async (req, res) => {
   const audioKey = `${CallSid}_greeting`;
   const baseUrl = getBaseUrl(req);
 
+  // ── Phase 4: consent gate — ask before anything else ──
+  // Phase 6: consent line + required flag come from the contact's project
+  const { consentRequired } = require('../services/consentService');
+  const sess = session.get(CallSid);
+  if (sess && !sess.projectConfig) {
+    try {
+      const { configForContact } = require('../services/projectConfigService');
+      sess.projectConfig = await configForContact(sess.contact?._id);
+    } catch (err) {
+      console.warn('[Twilio/greeting] project config lookup failed:', err.message);
+      sess.projectConfig = null;
+    }
+  }
+  const needConsent = sess?.projectConfig
+    ? sess.projectConfig.consentRequired
+    : consentRequired();
+  if (needConsent && sess && !sess.consentGranted
+      && sess.contact?.recordingConsent !== 'granted') {
+    const consentLine = sess?.projectConfig?.consentLine ||
+      process.env.CONSENT_LINE ||
+      'المكالمة دي بتتسجل لأغراض الجودة، موافق نكمل؟';
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="ar-EG" voice="woman">${consentLine}</Say>
+  <Record action="${baseUrl}/api/twilio/twiml/consent" method="POST"
+          maxLength="10" timeout="4" playBeep="false" />
+</Response>`);
+  }
+
   // Prefer the pre-generated AI greeting audio; fall back to <Say> with the
   // session's greeting text (or a generic message) if audio isn't cached.
   let speakBlock;
@@ -148,6 +193,124 @@ router.all('/twiml/greeting', async (req, res) => {
           maxLength="30" timeout="5" playBeep="false"
           recordingStatusCallback="${baseUrl}/api/twilio/recording-ready" />
 </Response>`);
+});
+
+// ─── Phase 4: consent answer handler ──────────────────────────────────────────
+// POST /api/twilio/twiml/consent
+router.post('/twiml/consent', async (req, res) => {
+  res.type('text/xml');
+  const { CallSid, RecordingUrl } = req.body;
+  const baseUrl = getBaseUrl(req);
+  const s = session.get(CallSid);
+
+  if (!s) {
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>`);
+  }
+
+  const { detectConsent } = require('../services/consentService');
+  let verdict = 'unknown';
+  let verbatim = '';
+
+  try {
+    if (RecordingUrl) {
+      const axios = require('axios');
+      const { transcribe } = require('../services/asr');
+      const audioRes = await axios.get(RecordingUrl + '.mp3', {
+        responseType: 'arraybuffer',
+        auth: {
+          username: process.env.TWILIO_ACCOUNT_SID,
+          password: process.env.TWILIO_AUTH_TOKEN,
+        },
+      });
+      verbatim = await transcribe(Buffer.from(audioRes.data), 'consent.mp3');
+      verdict  = detectConsent(verbatim);
+    }
+  } catch (err) {
+    console.error('[Twilio/consent] transcription failed:', err.message);
+  }
+
+  s.consentAttempts = (s.consentAttempts || 0) + 1;
+
+  // Unclear once → re-ask; unclear twice → treat as denied
+  if (verdict === 'unknown' && s.consentAttempts < 2) {
+    const consentLine = s.projectConfig?.consentLine ||
+      process.env.CONSENT_LINE ||
+      'المكالمة دي بتتسجل لأغراض الجودة، موافق نكمل؟';
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="ar-EG" voice="woman">معلش، مش سامعك كويس. ${consentLine}</Say>
+  <Record action="${baseUrl}/api/twilio/twiml/consent" method="POST"
+          maxLength="10" timeout="4" playBeep="false" />
+</Response>`);
+  }
+
+  const granted = verdict === 'granted';
+
+  // Persist the consent evidence on the CallLog + remember it on the Contact
+  try {
+    await CallLog.findByIdAndUpdate(s.callLogId, {
+      consent: { given: granted, verdictText: verbatim, at: new Date() },
+    });
+    await Contact.findByIdAndUpdate(s.contact._id, {
+      recordingConsent: granted ? 'granted' : 'denied',
+    });
+  } catch (err) {
+    console.error('[Twilio/consent] persist failed:', err.message);
+  }
+
+  if (!granted) {
+    // Delete any recording already captured for this call (best-effort)
+    client.recordings.list({ callSid: CallSid, limit: 20 })
+      .then(recs => Promise.all(recs.map(r => client.recordings(r.sid).remove())))
+      .then(() => console.log(`🗑️  Deleted recordings for denied-consent call ${CallSid}`))
+      .catch(err => console.warn('[Twilio/consent] recording delete failed:', err.message));
+
+    s.ended = true;
+    await CallLog.findByIdAndUpdate(s.callLogId, { status: 'completed', endedAt: new Date() });
+    session.remove(CallSid);
+
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="ar-EG" voice="woman">تمام، مفيش مشكلة خالص. شكراً لوقتك حضرتك، مع السلامة.</Say>
+  <Hangup/>
+</Response>`);
+  }
+
+  // Granted → continue to the normal greeting flow
+  s.consentGranted = true;
+  return res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Redirect method="GET">${baseUrl}/api/twilio/twiml/greeting?CallSid=${encodeURIComponent(CallSid)}</Redirect>
+</Response>`);
+});
+
+// ─── Phase 4: full-call recording finished ────────────────────────────────────
+// POST /api/twilio/recording-complete
+router.post('/recording-complete', async (req, res) => {
+  const { CallSid, RecordingUrl } = req.body;
+  try {
+    const callLog = await CallLog.findOneAndUpdate(
+      { twilioCallSid: CallSid },
+      { recordingUrl: RecordingUrl },
+      { new: true }
+    );
+
+    if (callLog) {
+      if (callLog.consent?.given === false) {
+        // Consent denied — remove the recording instead of archiving it
+        client.recordings.list({ callSid: CallSid, limit: 20 })
+          .then(recs => Promise.all(recs.map(r => client.recordings(r.sid).remove())))
+          .catch(err => console.warn('[Twilio/recording-complete] delete failed:', err.message));
+        await CallLog.findByIdAndUpdate(callLog._id, { recordingUrl: null });
+      } else {
+        const { enqueueArchive } = require('../queues/uploadQueue');
+        enqueueArchive(callLog._id, { delayMs: 5_000 });
+      }
+    }
+  } catch (err) {
+    console.error('[Twilio/recording-complete]', err);
+  }
+  res.sendStatus(204);
 });
 
 // ─── Audio cache endpoint (serves MP3 buffer to Twilio) ───────────────────────
@@ -180,7 +343,32 @@ router.post('/twiml/respond', async (req, res) => {
     if (RecordingUrl) {
       const result = await s.processRecording(RecordingUrl);
 
-      if (result.action === 'END_CALL' || result.action === 'ESCALATE') {
+      if (result.action === 'ESCALATE') {
+        // ── Phase 2: bridge the contact to a human agent via conference ──
+        const { conferenceTwiml, dialAgent } = require('../services/escalationService');
+
+        // Synthesize the handover line ("one moment, connecting you...")
+        const handoverAudio = await s.synthesize(result.speak, 'friendly');
+        const handoverKey = `${CallSid}_closing`;
+        audioCache.set(handoverKey, handoverAudio);
+
+        // Ring the human agent into the same conference (fire-and-forget)
+        dialAgent(CallSid).catch(err =>
+          console.error('[Twilio/escalate] agent dial failed:', err.message));
+
+        res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Play>${baseUrl}/api/twilio/audio/${encodeURIComponent(handoverKey)}</Play>
+  ${conferenceTwiml(CallSid)}
+</Response>`);
+        setTimeout(() => {
+          audioCache.delete(handoverKey);
+          audioCache.delete(`${CallSid}_greeting`);
+        }, 60_000);
+        return;
+      }
+
+      if (result.action === 'END_CALL') {
         // Synthesize closing statement
         const closingAudio = await s.synthesize(result.speak, 'friendly');
         const closeKey = `${CallSid}_closing`;

@@ -19,6 +19,7 @@ const responseSchema = new mongoose.Schema({
 const callLogSchema = new mongoose.Schema({
   contact:      { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', required: true },
   script:       { type: mongoose.Schema.Types.ObjectId, ref: 'Script' },
+  campaign:     { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },  // Phase 2: set by callWorker
   twilioCallSid:{ type: String, unique: true, sparse: true },
 
   status: {
@@ -45,6 +46,22 @@ const callLogSchema = new mongoose.Schema({
 
   // Raw Twilio recording URL
   recordingUrl: { type: String },
+
+  // ── Phase 4: recording consent evidence ──
+  consent: {
+    given:       { type: Boolean },   // true = granted, false = denied, undefined = not asked
+    verdictText: { type: String },    // the contact's verbatim answer
+    at:          { type: Date },
+  },
+
+  // ── Phase 4: Google Drive archive links ──
+  drive: {
+    folderId:      { type: String },
+    recordingUrl:  { type: String },
+    consentUrl:    { type: String },
+    transcriptUrl: { type: String },
+    draftUrl:      { type: String },
+  },
 
   // Full transcript text (concatenated)
   transcript:   { type: String },

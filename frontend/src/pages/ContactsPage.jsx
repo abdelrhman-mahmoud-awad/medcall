@@ -1,14 +1,8 @@
 import { useState, useEffect } from 'react';
 import { getContacts, createContact, updateContact, deleteContact } from '../services/api';
+import { onProjectChange } from '../services/projectStore';
 
-const inputStyle  = { display:'block', width:'100%', padding:'9px 12px', marginBottom:10, borderRadius:8, border:'1px solid #ddd', fontSize:13, fontFamily:'Cairo,sans-serif', boxSizing:'border-box' };
-const btnPrimary  = { background:'#1a73e8', color:'#fff', border:'none', borderRadius:8, padding:'9px 20px', fontSize:13, cursor:'pointer', fontFamily:'Cairo,sans-serif' };
-const btnDanger   = { background:'#fce4ec', color:'#c62828', border:'none', borderRadius:6, padding:'5px 12px', fontSize:12, cursor:'pointer' };
-const btnSecondary= { background:'#f1f3f4', color:'#333', border:'none', borderRadius:6, padding:'5px 12px', fontSize:12, cursor:'pointer' };
-const th = { padding:'10px 12px', fontSize:12, fontWeight:600, color:'#666', borderBottom:'2px solid #eee', textAlign:'right' };
-const td = { padding:'10px 12px', fontSize:13 };
-
-const empty = { name:'', type:'physician', specialty:'', phone:'', clinic:'', city:'' };
+const empty = { name: '', type: 'physician', specialty: '', phone: '', clinic: '', city: '' };
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState([]);
@@ -28,9 +22,16 @@ export default function ContactsPage() {
 
   useEffect(() => { load(); }, []);
 
+  // Re-fetch on topbar project switch (keeps the current search text)
+  useEffect(() => onProjectChange(() => load(search)), [search]);
+
   const openNew  = () => { setEditing(null); setForm(empty); setShowForm(true); setError(''); };
-  const openEdit = (c) => { setEditing(c._id); setForm({ name:c.name, type:c.type, specialty:c.specialty||'', phone:c.phone, clinic:c.clinic||'', city:c.city||'' }); setShowForm(true); setError(''); };
-  const close    = () => { setShowForm(false); setEditing(null); };
+  const openEdit = (c) => {
+    setEditing(c._id);
+    setForm({ name: c.name, type: c.type, specialty: c.specialty || '', phone: c.phone, clinic: c.clinic || '', city: c.city || '' });
+    setShowForm(true); setError('');
+  };
+  const close = () => { setShowForm(false); setEditing(null); };
 
   const save = async (e) => {
     e.preventDefault();
@@ -41,76 +42,108 @@ export default function ContactsPage() {
       await load(search);
       close();
     } catch (err) {
-      setError(err.response?.data?.error || 'حدث خطأ');
+      setError(err.response?.data?.error || 'Something went wrong.');
     } finally { setSaving(false); }
   };
 
   const remove = async (id) => {
-    if (!window.confirm('هل تريد حذف جهة الاتصال؟')) return;
+    if (!window.confirm('Delete this contact?')) return;
     await deleteContact(id);
     await load(search);
   };
 
   return (
-    <div style={{ padding:24, direction:'rtl', fontFamily:'Cairo,sans-serif', maxWidth:1100, margin:'0 auto' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <h2 style={{ margin:0 }}>جهات الاتصال ({total})</h2>
-        <button onClick={openNew} style={btnPrimary}>+ إضافة جهة اتصال</button>
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h2 className="page-title">Contacts <span className="muted" style={{ fontSize: 14 }}>({total})</span></h2>
+          <p className="page-sub">Physicians and pharmacists in your call universe</p>
+        </div>
+        <div className="page-actions">
+          <input
+            className="input" style={{ width: 260 }}
+            placeholder="Search by name or phone…"
+            value={search}
+            onChange={e => { setSearch(e.target.value); load(e.target.value); }}
+          />
+          <button onClick={openNew} className="btn btn-primary">Add contact</button>
+        </div>
       </div>
 
-      <input
-        placeholder="بحث بالاسم أو الهاتف..."
-        value={search}
-        onChange={e => { setSearch(e.target.value); load(e.target.value); }}
-        style={{ ...inputStyle, width:280, marginBottom:16 }}
-      />
-
-      <div style={{ background:'#fff', borderRadius:12, boxShadow:'0 2px 8px rgba(0,0,0,.06)', overflowX:'auto' }}>
-        <table style={{ width:'100%', borderCollapse:'collapse' }}>
-          <thead>
-            <tr>{['الاسم','النوع','التخصص','الهاتف','العيادة','المدينة','إجراءات'].map(h=>(
-              <th key={h} style={th}>{h}</th>
-            ))}</tr>
-          </thead>
-          <tbody>
-            {contacts.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign:'center', padding:32, color:'#999' }}>لا توجد جهات اتصال</td></tr>
-            ) : contacts.map(c => (
-              <tr key={c._id} style={{ borderBottom:'1px solid #f0f0f0' }}>
-                <td style={td}>{c.name}</td>
-                <td style={td}>{c.type === 'physician' ? '👨‍⚕️ طبيب' : '💊 صيدلاني'}</td>
-                <td style={td}>{c.specialty || '—'}</td>
-                <td style={td}>{c.phone}</td>
-                <td style={td}>{c.clinic || '—'}</td>
-                <td style={td}>{c.city || '—'}</td>
-                <td style={td}>
-                  <button onClick={() => openEdit(c)} style={{ ...btnSecondary, marginLeft:6 }}>تعديل</button>
-                  <button onClick={() => remove(c._id)} style={btnDanger}>حذف</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>{['Name', 'Type', 'Specialty', 'Phone', 'Clinic', 'City', ''].map((h, i) => (
+                <th key={i}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {contacts.length === 0 ? (
+                <tr><td colSpan={7} className="empty-cell">No contacts found.</td></tr>
+              ) : contacts.map(c => (
+                <tr key={c._id}>
+                  <td style={{ fontWeight: 600 }}>{c.name}</td>
+                  <td>
+                    <span className={`badge ${c.type === 'physician' ? 'badge-blue' : 'badge-purple'}`}>
+                      {c.type === 'physician' ? 'Physician' : 'Pharmacist'}
+                    </span>
+                  </td>
+                  <td>{c.specialty || '—'}</td>
+                  <td>{c.phone}</td>
+                  <td>{c.clinic || '—'}</td>
+                  <td>{c.city || '—'}</td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button onClick={() => openEdit(c)} className="btn btn-outline btn-sm" style={{ marginRight: 6 }}>Edit</button>
+                    <button onClick={() => remove(c._id)} className="btn btn-danger-outline btn-sm">Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modal */}
       {showForm && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.4)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <form onSubmit={save} style={{ background:'#fff', borderRadius:12, padding:28, width:420, boxShadow:'0 8px 32px rgba(0,0,0,.15)' }}>
-            <h3 style={{ margin:'0 0 20px' }}>{editing ? 'تعديل جهة الاتصال' : 'إضافة جهة اتصال جديدة'}</h3>
-            {error && <p style={{ color:'#c62828', fontSize:13, marginBottom:10 }}>{error}</p>}
-            <input placeholder="الاسم *" required value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={inputStyle} />
-            <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={inputStyle}>
-              <option value="physician">طبيب</option>
-              <option value="pharmacist">صيدلاني</option>
-            </select>
-            <input placeholder="التخصص" value={form.specialty} onChange={e=>setForm(f=>({...f,specialty:e.target.value}))} style={inputStyle} />
-            <input placeholder="رقم الهاتف * (مثال: +201001234567)" required value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} style={inputStyle} />
-            <input placeholder="العيادة / الصيدلية" value={form.clinic} onChange={e=>setForm(f=>({...f,clinic:e.target.value}))} style={inputStyle} />
-            <input placeholder="المدينة" value={form.city} onChange={e=>setForm(f=>({...f,city:e.target.value}))} style={inputStyle} />
-            <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:8 }}>
-              <button type="button" onClick={close} style={btnSecondary}>إلغاء</button>
-              <button type="submit" disabled={saving} style={btnPrimary}>{saving ? 'جارٍ الحفظ...' : 'حفظ'}</button>
+        <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) close(); }}>
+          <form onSubmit={save} className="modal">
+            <h3>{editing ? 'Edit contact' : 'New contact'}</h3>
+            {error && <div className="alert alert-err">{error}</div>}
+            <div className="field">
+              <label className="label">Name *</label>
+              <input className="input" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="form-row field">
+              <div>
+                <label className="label">Type</label>
+                <select className="select" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
+                  <option value="physician">Physician</option>
+                  <option value="pharmacist">Pharmacist</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Specialty</label>
+                <input className="input" placeholder="e.g. cardiology" value={form.specialty} onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))} />
+              </div>
+            </div>
+            <div className="field">
+              <label className="label">Phone * <span className="muted">(e.g. +201001234567)</span></label>
+              <input className="input" required value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+            </div>
+            <div className="form-row field">
+              <div>
+                <label className="label">Clinic / pharmacy</label>
+                <input className="input" value={form.clinic} onChange={e => setForm(f => ({ ...f, clinic: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">City</label>
+                <input className="input" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 6 }}>
+              <button type="button" onClick={close} className="btn btn-outline">Cancel</button>
+              <button type="submit" disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : 'Save contact'}</button>
             </div>
           </form>
         </div>

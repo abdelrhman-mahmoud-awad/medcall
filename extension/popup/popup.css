@@ -1,0 +1,39 @@
+body {
+  width: 340px;
+  margin: 0;
+  padding: 14px;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  font-size: 13px;
+  background: #f5f6fa;
+}
+h1 { font-size: 15px; margin: 0 0 12px; }
+label { display: block; font-size: 11px; color: #666; margin-top: 8px; }
+input {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 10px; margin-top: 4px;
+  border: 1px solid #ddd; border-radius: 8px; font-size: 13px;
+}
+button {
+  margin-top: 10px; padding: 8px 16px;
+  background: #1a73e8; color: #fff;
+  border: none; border-radius: 8px; font-size: 13px; cursor: pointer;
+}
+button.link {
+  background: none; color: #1a73e8; padding: 0; margin: 0; font-size: 11px;
+  text-decoration: underline;
+}
+.row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.ok { color: #43a047; font-size: 12px; }
+.error { color: #d32f2f; font-size: 12px; }
+.hidden { display: none; }
+
+#draftList { margin-top: 10px; max-height: 320px; overflow-y: auto; }
+.draft {
+  background: #fff; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.draft b { font-size: 13px; }
+.draft small { color: #888; display: block; margin: 2px 0 6px; }
+.draft .actions { display: flex; gap: 6px; }
+.draft button { margin-top: 0; padding: 5px 10px; font-size: 12px; }
+.draft button.secondary { background: #43a047; }

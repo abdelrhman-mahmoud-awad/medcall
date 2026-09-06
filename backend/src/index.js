@@ -14,6 +14,9 @@ if (missing.length) {
 const express  = require('express');
 const cors     = require('cors');
 const mongoose = require('mongoose');
+const http     = require('http');
+const { Server }     = require('socket.io');
+const { initSocket } = require('./services/socketService');
 
 const app = express();
 
@@ -35,6 +38,8 @@ app.use(cors({
     if (!origin) return cb(null, true);
     const normalized = origin.replace(/\/$/, '');
     if (allowedOrigins.has(normalized)) return cb(null, true);
+    // Phase 4: allow the MedCall Filler Chrome extension
+    if (normalized.startsWith('chrome-extension://')) return cb(null, true);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
 }));
@@ -48,6 +53,15 @@ app.use('/api/contacts',require('./routes/contacts'));
 app.use('/api/calls',   require('./routes/calls'));
 app.use('/api/scripts', require('./routes/scripts'));
 app.use('/api/twilio',  require('./routes/twilio'));
+app.use('/api/excel',   require('./routes/excel'));
+app.use('/api/campaigns', require('./routes/campaigns'));
+app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/agents',    require('./routes/agents'));
+app.use('/api/recordings', require('./routes/recordings'));
+app.use('/api/data-entry', require('./routes/dataEntry'));
+app.use('/api/extension',  require('./routes/extension'));
+app.use('/api/integrations', require('./routes/integrations'));
+app.use('/api/projects',   require('./routes/projects'));
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (_, res) => res.json({ status: 'ok', time: new Date() }));
@@ -81,12 +95,26 @@ app.use((err, _, res, __) => {
   res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
+// ── HTTP server + Socket.io (Phase 2 real-time dashboard) ────────────────────
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173' },
+});
+initSocket(io);
+
 // ── MongoDB + start server ────────────────────────────────────────────────────
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connected');
+
+    // Phase 2: start the campaign call worker (no-op if REDIS_URL isn't set)
+    require('./queues/callWorker').start();
+
+    // Phase 4: start the Drive upload worker (no-op if REDIS_URL isn't set)
+    require('./queues/uploadQueue').startWorker();
+
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () =>
+    server.listen(PORT, () =>
       console.log(`🚀 MedCall backend running on http://localhost:${PORT}`)
     );
   })
