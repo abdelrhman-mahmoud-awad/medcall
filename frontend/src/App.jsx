@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import {
-  BrowserRouter, Routes, Route, Navigate, NavLink, Link, useNavigate, useLocation,
+  HashRouter, Routes, Route, Navigate, NavLink, Link, useNavigate, useLocation,
 } from 'react-router-dom';
 
 // Code-split every page so the initial bundle stays small; the recharts-heavy
@@ -381,7 +381,7 @@ function Shell({ children }) {
 // ── Router ─────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login"    element={<LoginPage />} />
@@ -424,6 +424,6 @@ export default function App() {
         } />
       </Routes>
       </Suspense>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
