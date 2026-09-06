@@ -33,13 +33,18 @@ const allowedOrigins = new Set(
   ].filter(Boolean).map((origin) => origin.replace(/\/$/, ''))
 );
 
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  const normalized = origin.replace(/\/$/, '');
+  if (allowedOrigins.has(normalized)) return true;
+  // Vercel creates a new preview hostname for each deployment.
+  if (/^https:\/\/medcall(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(normalized)) return true;
+  return normalized.startsWith('chrome-extension://');
+};
+
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    const normalized = origin.replace(/\/$/, '');
-    if (allowedOrigins.has(normalized)) return cb(null, true);
-    // Phase 4: allow the MedCall Filler Chrome extension
-    if (normalized.startsWith('chrome-extension://')) return cb(null, true);
+    if (isAllowedOrigin(origin)) return cb(null, true);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
 }));
@@ -98,7 +103,7 @@ app.use((err, _, res, __) => {
 // ── HTTP server + Socket.io (Phase 2 real-time dashboard) ────────────────────
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173' },
+  cors: { origin: (origin, cb) => cb(null, isAllowedOrigin(origin)) },
 });
 initSocket(io);
 
