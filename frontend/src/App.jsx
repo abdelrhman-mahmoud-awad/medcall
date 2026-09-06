@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import {
-  BrowserRouter, Routes, Route, Navigate, NavLink, useNavigate, useLocation,
+  BrowserRouter, Routes, Route, Navigate, NavLink, Link, useNavigate, useLocation,
 } from 'react-router-dom';
 
 // Code-split every page so the initial bundle stays small; the recharts-heavy
@@ -109,7 +109,7 @@ function LoginPage() {
     <AuthShell
       title="Welcome back"
       subtitle="Sign in to your MedCall CRM workspace"
-      footer={<>Don't have an account? <a href="/register">Create one</a></>}
+      footer={<>Don't have an account? <Link to="/register">Create one</Link></>}
     >
       <form onSubmit={submit}>
         {error && <div className="alert alert-err">{error}</div>}
@@ -156,7 +156,7 @@ function RegisterPage() {
     <AuthShell
       title="Create your account"
       subtitle="New accounts are workspace managers"
-      footer={<>Already have an account? <a href="/login">Sign in</a></>}
+      footer={<>Already have an account? <Link to="/login">Sign in</Link></>}
     >
       <form onSubmit={submit}>
         {error && <div className="alert alert-err">{error}</div>}
