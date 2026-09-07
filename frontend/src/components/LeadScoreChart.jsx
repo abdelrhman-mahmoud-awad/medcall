@@ -2,11 +2,11 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
 } from 'recharts';
 
-const COLORS = { hot: '#ff5252', warm: '#ffb300', cold: '#64b5f6' };
+const COLORS = { warm: '#ffb300', cold: '#64b5f6' };
 
-/** Lead label distribution bar chart. Expects { hot, warm, cold } counts. */
+/** Lead label distribution bar chart. Expects { warm, cold } counts. */
 export default function LeadScoreChart({ byLabel = {} }) {
-  const data = ['hot', 'warm', 'cold'].map(label => ({
+  const data = ['warm', 'cold'].map(label => ({
     label, count: byLabel[label] || 0,
   }));
 

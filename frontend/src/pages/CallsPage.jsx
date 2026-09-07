@@ -31,7 +31,6 @@ export default function CallsPage() {
 
   const KPIS = stats ? [
     { label: 'Total calls',     value: stats.total,     color: 'var(--primary)' },
-    { label: 'Hot leads',       value: stats.hot,       color: 'var(--danger)' },
     { label: 'Warm leads',      value: stats.warm,      color: 'var(--warning)' },
     { label: 'Cold leads',      value: stats.cold,      color: 'var(--info)' },
     { label: 'Escalated',       value: stats.escalated, color: 'var(--purple)' },

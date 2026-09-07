@@ -56,13 +56,12 @@ router.get('/timeline', auth, async (req, res) => {
       { $group: {
         _id:   { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
         calls: { $sum: 1 },
-        hot:   { $sum: { $cond: [{ $eq: ['$leadLabel', 'hot']  }, 1, 0] } },
         warm:  { $sum: { $cond: [{ $eq: ['$leadLabel', 'warm'] }, 1, 0] } },
       }},
       { $sort: { _id: 1 } },
     ]);
 
-    res.json(data.map(d => ({ date: d._id, calls: d.calls, hot: d.hot, warm: d.warm })));
+    res.json(data.map(d => ({ date: d._id, calls: d.calls, warm: d.warm })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -133,7 +133,6 @@ async function getProgress(project) {
       { $group: {
         _id: '$initiatedBy',
         calls:    { $sum: 1 },
-        hotLeads: { $sum: { $cond: [{ $eq: ['$leadLabel', 'hot'] }, 1, 0] } },
         avgScore: { $avg: '$leadScore' },
       } },
     ]),
@@ -154,13 +153,12 @@ async function getProgress(project) {
     if (!buckets.has(key)) buckets.set(key, { id: id ? String(id) : null, calls: 0, forms: 0 });
     return buckets.get(key);
   };
-  let totalCalls = 0, totalForms = 0, hotLeads = 0, scoreSum = 0, scoreN = 0;
+  let totalCalls = 0, totalForms = 0, scoreSum = 0, scoreN = 0;
 
   for (const row of callAgg) {
     const b = bucket(row._id);
     b.calls = row.calls;
     totalCalls += row.calls;
-    hotLeads  += row.hotLeads;
     if (row.avgScore != null) { scoreSum += row.avgScore * row.calls; scoreN += row.calls; }
   }
   for (const row of formAgg) {
@@ -199,7 +197,6 @@ async function getProgress(project) {
       callsPct: pct(totalCalls, project.targets?.calls),
       formsPct: pct(totalForms, project.targets?.forms),
       contacts,
-      hotLeads,
       avgScore: scoreN ? Math.round(scoreSum / scoreN) : null,
     },
     members,
@@ -266,7 +263,7 @@ async function buildInsightsDataset(project) {
     }
   }
 
-  const leadCounts = { hot: 0, warm: 0, cold: 0 };
+  const leadCounts = { warm: 0, cold: 0 };
   let leadScoreSum = 0, leadN = 0;
   for (const l of leads) {
     if (l._id) leadCounts[l._id] = l.n;

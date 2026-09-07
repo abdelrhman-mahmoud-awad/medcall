@@ -19,7 +19,7 @@ export default function DataHubPage() {
     { id: 'review',   label: 'Review',        el: <DataEntryReviewPage /> },
     ...(isManager() ? [
       { id: 'scripts',  label: 'Scripts',       el: <ScriptsPage /> },
-      { id: 'import',   label: 'Import / Sync', el: <ExcelSyncPage /> },
+      { id: 'import',   label: 'Excel sheets',  el: <ExcelSyncPage /> },
     ] : []),
   ];
 

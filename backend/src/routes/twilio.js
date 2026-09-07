@@ -19,6 +19,7 @@ const auth     = require('../middleware/auth');
 const Contact  = require('../models/Contact');
 const Script   = require('../models/Script');
 const CallLog  = require('../models/CallLog');
+const CalendarEvent = require('../models/CalendarEvent');
 const session  = require('../services/callSession');
 
 const client = twilio(
@@ -443,10 +444,17 @@ router.post('/status', async (req, res) => {
   const status = statusMap[CallStatus] || CallStatus;
 
   try {
-    await CallLog.findOneAndUpdate(
+    const callLog = await CallLog.findOneAndUpdate(
       { twilioCallSid: CallSid },
-      { status, ...(status === 'in-progress' ? { startedAt: new Date() } : {}) }
+      { status, ...(status === 'in-progress' ? { startedAt: new Date() } : {}) },
+      { new: true }
     );
+
+    if (callLog?.callback && ['completed', 'busy', 'no-answer', 'failed', 'canceled'].includes(CallStatus)) {
+      await CalendarEvent.findByIdAndUpdate(callLog.callback, {
+        status: CallStatus === 'completed' ? 'completed' : 'failed',
+      });
+    }
 
     if (['completed', 'busy', 'no-answer', 'failed'].includes(CallStatus)) {
       const s = session.get(CallSid);

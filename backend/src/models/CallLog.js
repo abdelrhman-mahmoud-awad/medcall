@@ -20,6 +20,7 @@ const callLogSchema = new mongoose.Schema({
   contact:      { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', required: true },
   script:       { type: mongoose.Schema.Types.ObjectId, ref: 'Script' },
   campaign:     { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },  // Phase 2: set by callWorker
+  callback:     { type: mongoose.Schema.Types.ObjectId, ref: 'CalendarEvent' },
   twilioCallSid:{ type: String, unique: true, sparse: true },
 
   status: {
@@ -35,7 +36,7 @@ const callLogSchema = new mongoose.Schema({
 
   // Lead qualification result
   leadScore:    { type: Number, min: 0, max: 100 },
-  leadLabel:    { type: String, enum: ['cold', 'warm', 'hot'], default: 'cold' },
+  leadLabel:    { type: String, enum: ['cold', 'warm'], default: 'cold' },
   escalated:    { type: Boolean, default: false },
   escalatedAt:  { type: Date },
 

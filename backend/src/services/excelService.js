@@ -92,6 +92,66 @@ async function importFromExcel(filePath = FILE()) {
   };
 }
 
+const normalizeCell = (value) => String(value ?? '').trim();
+const normalizeMatch = (value) => normalizeCell(value).toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/gi, '');
+const normalizePhone = (value) => normalizeCell(value).replace(/\D/g, '').replace(/^20/, '0');
+
+/**
+ * Import the delayed successful-doctors sheet. This sheet is deliberately
+ * separate from the master call list: it only attaches each doctor's unique
+ * data-entry URL and never replaces contact fields.
+ */
+async function importSuccessfulDoctors(filePath) {
+  const { ws } = await _open(filePath);
+  const headers = [];
+  ws.getRow(1).eachCell((cell, col) => {
+    headers[col] = normalizeCell(cell.value).toLowerCase();
+  });
+  const findColumn = (patterns) => headers.findIndex(header => patterns.some(pattern => pattern.test(header)));
+  const phoneCol = findColumn([/phone/, /mobile/, /tel/]);
+  const nameCol = findColumn([/^name$/, /doctor/, /physician/]);
+  const clinicCol = findColumn([/clinic/, /hospital/, /practice/]);
+  const urlCol = findColumn([/data.*entry/, /entry.*link/, /url/, /link/]);
+
+  const contacts = await Contact.find({}, 'name phone clinic').lean();
+  const byPhone = new Map(contacts.map(contact => [normalizePhone(contact.phone), contact]));
+  const result = { linked: 0, withLinks: 0, pending: 0, unmatched: 0, duplicates: 0, skipped: 0, rows: [] };
+
+  for (let rowNumber = 2; rowNumber <= ws.rowCount; rowNumber++) {
+    const row = ws.getRow(rowNumber);
+    const url = urlCol > 0 ? normalizeCell(row.getCell(urlCol).text || row.getCell(urlCol).value) : '';
+
+    const phone = phoneCol > 0 ? normalizePhone(row.getCell(phoneCol).text || row.getCell(phoneCol).value) : '';
+    const name = nameCol > 0 ? normalizeMatch(row.getCell(nameCol).text || row.getCell(nameCol).value) : '';
+    const clinic = clinicCol > 0 ? normalizeMatch(row.getCell(clinicCol).text || row.getCell(clinicCol).value) : '';
+    let matches = phone ? (byPhone.has(phone) ? [byPhone.get(phone)] : []) : [];
+    if (!matches.length && name) {
+      matches = contacts.filter(contact => normalizeMatch(contact.name) === name &&
+        (!clinic || normalizeMatch(contact.clinic) === clinic));
+    }
+    if (matches.length !== 1) {
+      if (matches.length > 1) result.duplicates++;
+      else result.unmatched++;
+      result.rows.push({ row: rowNumber, name, phone, status: matches.length > 1 ? 'duplicate' : 'unmatched' });
+      continue;
+    }
+
+    const update = { dataEntrySourceRow: rowNumber };
+    if (url) {
+      update.dataEntryUrl = url;
+      update.dataEntryStatus = 'received';
+      update.dataEntryReceivedAt = new Date();
+      result.withLinks++;
+    } else {
+      update.dataEntryStatus = 'pending';
+      result.pending++;
+    }
+    await Contact.findByIdAndUpdate(matches[0]._id, update);
+    result.linked++;
+  }
+  return result;
+}
+
 /**
  * Write one finished call back into the contact's Excel row.
  * Called automatically from callSession._finalize() when EXCEL_AUTO_SYNC=true.
@@ -116,8 +176,8 @@ async function updateRowForCall(callLog) {
     .map(x => `${x.questionKey}: ${x.answer} (${x.sentiment})`).join(' | ');
   row.getCell(COLS.summary).value    = (callLog.transcript || '').slice(0, 500);
 
-  // Color the label cell: hot=red, warm=yellow, cold=blue
-  const fills = { hot: 'FFFF5252', warm: 'FFFFD54F', cold: 'FF90CAF9' };
+  // Color the label cell: warm=yellow, cold=blue
+  const fills = { warm: 'FFFFD54F', cold: 'FF90CAF9' };
   if (fills[callLog.leadLabel]) {
     row.getCell(COLS.label).fill = {
       type: 'pattern', pattern: 'solid', fgColor: { argb: fills[callLog.leadLabel] },
@@ -165,4 +225,4 @@ async function exportCallLogs(CallLog) {
   return wb.xlsx.writeBuffer();
 }
 
-module.exports = { importFromExcel, updateRowForCall, exportCallLogs, FILE };
+module.exports = { importFromExcel, importSuccessfulDoctors, updateRowForCall, exportCallLogs, FILE };

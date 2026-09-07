@@ -226,7 +226,7 @@ existing ones are linked to the project, not duplicated.
   "targets":  { "calls": 100, "forms": 100 },
   "totals":   { "calls": 68, "forms": 41,
                 "callsPct": 68, "formsPct": 41,
-                "contacts": 250, "hotLeads": 12, "avgScore": 54 },
+                "contacts": 250, "avgScore": 54 },
   "members": [
     { "id": "…", "name": "Sara",  "calls": 32, "forms": 20 },
     { "id": "…", "name": "Omar",  "calls": 36, "forms": 21 },
@@ -265,7 +265,7 @@ only the structured results:
                 "bySpecialty": { "cardiology": 90, "…": 0 }, "byCity": { "Cairo": 120 } },
   "calls":    { "completed": 68, "noAnswer": 20, "failed": 5, "avgDurationSec": 190,
                 "consent":  { "granted": 60, "denied": 8 } },
-  "leads":    { "hot": 12, "warm": 25, "cold": 31, "avgScore": 54 },
+  "leads":    { "warm": 25, "cold": 31, "avgScore": 54 },
   "answers":  {
     "aware_of_drug": { "yes": 40, "no": 28 },
     "prescribing":   { "never": 20, "rarely": 18, "sometimes": 22, "often": 8 },
@@ -291,7 +291,7 @@ dataset into a market-research interpretation:
   "keyFindings":     ["Awareness is at 59% among reached physicians…", "…"],
   "marketSignals":   [{ "signal": "High interest, low prescribing", "evidence": "45 interested vs 8 often-prescribing", "meaning": "…" }],
   "segments":        [{ "segment": "Cairo cardiologists", "insight": "…" }],
-  "recommendations": ["Prioritize sample delivery to the 12 hot leads…", "…"],
+  "recommendations": ["Prioritize follow-up with high-scoring warm leads…", "…"],
   "risks":           ["8 consent denials suggest…"],
   "dataQuality":     "Caveats: only 68/100 target calls completed — findings are preliminary."
 }

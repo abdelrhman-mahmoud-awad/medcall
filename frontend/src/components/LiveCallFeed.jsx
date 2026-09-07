@@ -1,4 +1,4 @@
-const LABEL_COLORS = { hot: '#f87171', warm: '#fbbf24', cold: '#38bdf8' };
+const LABEL_COLORS = { warm: '#fbbf24', cold: '#38bdf8' };
 
 /** Real-time list of finalized calls (fed by the call:update socket event). */
 export default function LiveCallFeed({ calls }) {

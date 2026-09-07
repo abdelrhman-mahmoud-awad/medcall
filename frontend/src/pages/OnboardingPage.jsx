@@ -41,6 +41,8 @@ export default function OnboardingPage() {
   const [file, setFile]           = useState(null);
   const [sheetUrl, setSheetUrl]   = useState(saved.sheetUrl || '');
   const [importResult, setImportResult] = useState(null);
+  const [dataMode, setDataMode] = useState(saved.dataMode || 'validate');
+  const [needList, setNeedList] = useState(saved.needList || { specialty: '', area: '', count: 10, filters: '' });
 
   const userName = (() => {
     try { return (JSON.parse(localStorage.getItem('medcall_user')) || {}).name || ''; } catch { return ''; }
@@ -63,6 +65,8 @@ export default function OnboardingPage() {
           setScriptId('');
           setMethod('file');
           setSheetUrl('');
+          setDataMode('validate');
+          setNeedList({ specialty: '', area: '', count: 10, filters: '' });
         }
       })
       .catch(() => {});
@@ -73,9 +77,9 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (done) return;
     try {
-      sessionStorage.setItem(WIZARD_KEY, JSON.stringify({ step, projectId, project, scriptId, method, sheetUrl }));
+      sessionStorage.setItem(WIZARD_KEY, JSON.stringify({ step, projectId, project, scriptId, method, sheetUrl, dataMode, needList }));
     } catch { /* storage full/unavailable — wizard still works, just not refresh-safe */ }
-  }, [step, projectId, project, scriptId, method, sheetUrl, done]);
+  }, [step, projectId, project, scriptId, method, sheetUrl, dataMode, needList, done]);
 
   // Clear persisted state once setup is finished.
   useEffect(() => {
@@ -301,6 +305,37 @@ export default function OnboardingPage() {
                 <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
                   Import your doctors / pharmacists sheet. Rows are validated (Egyptian phone format, duplicates) and invalid rows are rejected with reasons.
                 </p>
+                <div className="sourcing-setup">
+                  <div className="label">How should this project source doctor data?</div>
+                  <div className="sourcing-options">
+                    <label className={`sourcing-option ${dataMode === 'validate' ? 'active' : ''}`}>
+                      <input type="radio" name="dataMode" value="validate" checked={dataMode === 'validate'} onChange={e => setDataMode(e.target.value)} />
+                      <span><b>Validate my sheet</b><small>Check existing doctors online and propose corrections.</small></span>
+                    </label>
+                    <label className={`sourcing-option ${dataMode === 'find' ? 'active' : ''}`}>
+                      <input type="radio" name="dataMode" value="find" checked={dataMode === 'find'} onChange={e => setDataMode(e.target.value)} />
+                      <span><b>Find doctors for me</b><small>Search public sources by specialty and area.</small></span>
+                    </label>
+                    <label className={`sourcing-option ${dataMode === 'both' ? 'active' : ''}`}>
+                      <input type="radio" name="dataMode" value="both" checked={dataMode === 'both'} onChange={e => setDataMode(e.target.value)} />
+                      <span><b>Both</b><small>Validate the sheet and find missing doctors.</small></span>
+                    </label>
+                  </div>
+                  {(dataMode === 'find' || dataMode === 'both') && (
+                    <div style={{ marginTop: 12 }}>
+                      <div className="label">Tell us what you need to find</div>
+                      <div className="form-row">
+                        <input className="input" placeholder="Specialty (e.g. cardiology)" value={needList.specialty} onChange={e => setNeedList(n => ({ ...n, specialty: e.target.value }))} />
+                        <input className="input" placeholder="Area (e.g. Cairo)" value={needList.area} onChange={e => setNeedList(n => ({ ...n, area: e.target.value }))} />
+                      </div>
+                      <div className="form-row" style={{ marginTop: 8 }}>
+                        <input className="input" type="number" min="1" max="500" placeholder="Doctors needed" value={needList.count} onChange={e => setNeedList(n => ({ ...n, count: e.target.value }))} />
+                        <input className="input" placeholder="Optional filters: clinic, hospital, language" value={needList.filters} onChange={e => setNeedList(n => ({ ...n, filters: e.target.value }))} />
+                      </div>
+                    </div>
+                  )}
+                  <p className="muted" style={{ margin: '10px 0 0', fontSize: 11.5 }}>The manager approves every correction or new doctor before data is added or anyone is called.</p>
+                </div>
                 <div className="tabs" style={{ marginBottom: 14 }}>
                   <button className={`tab ${method === 'file' ? 'active' : ''}`} onClick={() => setMethod('file')}>Upload .xlsx</button>
                   <button className={`tab ${method === 'url' ? 'active' : ''}`} onClick={() => setMethod('url')}>Google Sheet link</button>

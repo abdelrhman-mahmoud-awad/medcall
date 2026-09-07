@@ -55,8 +55,15 @@ export const updateScript = (id, d)  => api.put(`/scripts/${id}`, d);
 // ── Twilio / Calling ──────────────────────────────────────────────────────────
 export const initiateCall = (data)   => api.post('/twilio/call', data);
 
+// ── Calendar / requested callbacks ───────────────────────────────────────────
+export const getCalendarEvents = () => api.get('/calendar', { params: withProject() });
+export const createCalendarEvent = (data) => api.post('/calendar', data, { params: withProject() });
+export const updateCalendarEvent = (id, data) => api.put(`/calendar/${id}`, data, { params: withProject() });
+export const cancelCalendarEvent = (id) => api.post(`/calendar/${id}/cancel`, null, { params: withProject() });
+
 // ── Excel sync ────────────────────────────────────────────────────────────────
 export const uploadExcel        = (formData) => api.post('/excel/upload', formData);
+export const uploadSuccessfulDoctors = (formData) => api.post('/excel/upload-successful', formData);
 export const syncExcel          = ()   => api.post('/excel/sync');
 export const downloadExcel      = ()   => api.get('/excel/download', { responseType: 'blob' });
 export const getExcelStatus     = ()   => api.get('/excel/status');

@@ -14,7 +14,6 @@ const campaignSchema = new mongoose.Schema({
   // Stats (updated as calls complete)
   totalCalls:     { type: Number, default: 0 },
   completedCalls: { type: Number, default: 0 },
-  hotLeads:       { type: Number, default: 0 },
   warmLeads:      { type: Number, default: 0 },
   coldLeads:      { type: Number, default: 0 },
   avgScore:       { type: Number, default: 0 },

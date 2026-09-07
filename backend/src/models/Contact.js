@@ -20,6 +20,12 @@ const contactSchema = new mongoose.Schema({
   // 'denied' contacts are auto-skipped by campaigns, like DNC
   recordingConsent: { type: String, enum: ['granted', 'denied', 'unknown'], default: 'unknown' },
 
+  // ── Phase 6: per-doctor data-entry link from the successful-doctors sheet ──
+  dataEntryUrl:        { type: String, trim: true },
+  dataEntryStatus:     { type: String, enum: ['pending', 'received', 'completed', 'missing'], default: 'pending' },
+  dataEntryReceivedAt: { type: Date },
+  dataEntrySourceRow:  { type: Number },
+
   // ── Excel sync (Phase 3) ──
   excelRow:    { type: Number },                  // 1-based row in the sheet
   excelFile:   { type: String },                  // source file path

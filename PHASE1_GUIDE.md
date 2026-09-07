@@ -155,7 +155,7 @@ npm run dev
 
 4. Call ends
    └─ callSession._finalize()
-      ├─ Score lead (0–100, cold/warm/hot)
+      ├─ Score lead (0–100, cold/warm)
       ├─ Save full transcript to CallLog
       └─ Update contact.callCount + lastCalledAt
 ```
@@ -180,7 +180,7 @@ Scripts are stored in MongoDB and loaded per call. Each question has:
 **Lead scoring:**
 - Each answer is given a sentiment score (positive / neutral / negative)
 - Weighted sum → 0–100 score
-- `warm` threshold: 35+, `hot` threshold: 65+
+- `warm` threshold: 35+
 
 ---
 
@@ -203,8 +203,7 @@ Via the API (POST /api/scripts):
       "scoringWeight": 3
     }
   ],
-  "warmThreshold": 40,
-  "hotThreshold": 70
+  "warmThreshold": 40
 }
 ```
 

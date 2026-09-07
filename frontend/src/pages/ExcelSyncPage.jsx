@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  getExcelStatus, getExcelChanges, uploadExcel, syncExcel, downloadExcel,
-  approveChange, rejectChange, verifyChange,
+  getExcelStatus, getExcelChanges,
+  uploadSuccessfulDoctors, approveChange, rejectChange, verifyChange,
 } from '../services/api';
 
 const VERDICT = {
@@ -27,38 +27,16 @@ export default function ExcelSyncPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleUpload = async (file) => {
+  const handleSuccessfulUpload = async (file) => {
     if (!file) return;
-    setBusy('upload');
+    setBusy('successful-upload');
     const fd = new FormData();
     fd.append('file', file);
     try {
-      const r = await uploadExcel(fd);
-      flash('ok', `Sheet imported — ${r.data.imported ?? 0} new, ${r.data.linked ?? 0} linked.`);
+      const r = await uploadSuccessfulDoctors(fd);
+      flash('ok', `Valid doctors integrated — ${r.data.linked} matched · ${r.data.withLinks} links received · ${r.data.pending} waiting for data-entry links.`);
       load();
-    } catch (e) { flash('err', e.response?.data?.error || 'Upload failed.'); }
-    setBusy('');
-  };
-
-  const handleSync = async () => {
-    setBusy('sync');
-    try {
-      const r = await syncExcel();
-      flash('ok', `Sync complete — ${r.data.updated} rows updated, ${r.data.skipped} skipped.`);
-      load();
-    } catch (e) { flash('err', e.response?.data?.error || 'Sync failed.'); }
-    setBusy('');
-  };
-
-  const handleDownload = async () => {
-    setBusy('download');
-    try {
-      const r = await downloadExcel();
-      const url = URL.createObjectURL(new Blob([r.data]));
-      const a = Object.assign(document.createElement('a'), { href: url, download: `medcall_results_${Date.now()}.xlsx` });
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch { flash('err', 'Download failed.'); }
+    } catch (e) { flash('err', e.response?.data?.error || 'Successful-doctors import failed.'); }
     setBusy('');
   };
 
@@ -79,20 +57,14 @@ export default function ExcelSyncPage() {
       <div className="page-head">
         <div>
           <h2 className="page-title">Excel Sync</h2>
-          <p className="page-sub">Keep the master sheet and the database in step, with human review for data changes</p>
+          <p className="page-sub">Attach successful doctors to the Contacts call list with their unique data-entry links</p>
         </div>
         <div className="page-actions">
           <label className="btn btn-outline" style={{ cursor: 'pointer' }}>
-            {busy === 'upload' ? 'Uploading…' : 'Upload master sheet (.xlsx)'}
+            {busy === 'successful-upload' ? 'Integrating…' : 'Integrate valid doctors Excel sheet'}
             <input type="file" accept=".xlsx" style={{ display: 'none' }}
-                   onChange={e => { handleUpload(e.target.files[0]); e.target.value = ''; }} />
+                   onChange={e => { handleSuccessfulUpload(e.target.files[0]); e.target.value = ''; }} />
           </label>
-          <button className="btn btn-outline" disabled={busy === 'sync'} onClick={handleSync}>
-            {busy === 'sync' ? 'Syncing…' : 'Re-push all results'}
-          </button>
-          <button className="btn btn-primary" disabled={busy === 'download'} onClick={handleDownload}>
-            {busy === 'download' ? 'Preparing…' : 'Download workbook'}
-          </button>
         </div>
       </div>
 

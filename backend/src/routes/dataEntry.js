@@ -24,7 +24,7 @@ router.get('/', auth, async (req, res) => {
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
     const drafts = await DataEntryDraft.find(filter)
-      .populate('contact', 'name phone specialty city type')
+      .populate('contact', 'name phone specialty city type dataEntryUrl dataEntryStatus')
       .sort('-createdAt')
       .limit(200);
     res.json(drafts);
@@ -37,7 +37,7 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const draft = await DataEntryDraft.findById(req.params.id)
-      .populate('contact', 'name phone specialty city type')
+      .populate('contact', 'name phone specialty city type dataEntryUrl dataEntryStatus')
       .populate('call', 'transcript leadScore leadLabel endedAt durationSec drive recordingUrl status')
       .populate('project', 'name');
     if (!draft) return res.status(404).json({ error: 'Draft not found' });

@@ -65,7 +65,6 @@ export default function MarketInsightsPage() {
     { label: 'Contacts',           value: ds.contacts?.total },
     { label: 'Completed calls',    value: ds.progress?.callsDone },
     { label: 'Forms submitted',    value: ds.progress?.formsDone },
-    { label: 'Hot leads',          value: ds.leads?.hot },
     { label: 'Warm leads',         value: ds.leads?.warm },
     { label: 'Cold leads',         value: ds.leads?.cold },
     { label: 'Avg. lead score',    value: ds.leads?.avgScore },

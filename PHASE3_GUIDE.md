@@ -175,7 +175,7 @@ clearly shows different data.
 
 When a call finalizes, `_finalize()` calls `updateRowForCall()`, which opens
 the sheet, finds the contact's original row, writes the six result columns,
-colors the lead label cell (🔴 hot / 🟡 warm / 🔵 cold), and saves the file in
+  colors the lead label cell (🟡 warm / 🔵 cold), and saves the file in
 place — your formatting is untouched. Failures (e.g. the file is open in
 Excel) are logged but **never crash the call pipeline**.
 

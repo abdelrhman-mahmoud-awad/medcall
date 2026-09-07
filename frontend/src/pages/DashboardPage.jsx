@@ -136,7 +136,6 @@ export default function DashboardPage() {
       <div className="kpi-grid">
         <Kpi label="Total calls"    value={summary.totalCalls} />
         <Kpi label="Completed"      value={completed}                 color="var(--success)" />
-        <Kpi label="Hot leads"      value={summary.byLabel?.hot || 0} color="var(--danger)" />
         <Kpi label="Warm leads"     value={summary.byLabel?.warm || 0} color="var(--warning)" />
         <Kpi label="Escalated"      value={escalated}                 color="var(--info)" />
         <Kpi label="Avg lead score" value={summary.avgScore}          color="var(--primary)" />
@@ -228,7 +227,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="progress-meta" style={{ marginTop: 4 }}>
                     <span>{c.completedCalls}/{c.totalCalls} calls</span>
-                    <span>{c.hotLeads || 0} hot · {c.warmLeads || 0} warm</span>
+                    <span>{c.warmLeads || 0} warm</span>
                   </div>
                 </div>
               );

@@ -152,6 +152,12 @@ export default function DataEntryReviewPage() {
                   <span style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 400 }}> — 📊 {selected.project.name}</span>
                 )}
               </h3>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#a1a1aa' }}>
+                Data-entry link:{' '}
+                {selected.contact?.dataEntryUrl
+                  ? <a href={selected.contact.dataEntryUrl} target="_blank" rel="noreferrer">Open doctor link</a>
+                  : <span>Waiting for the successful-doctors sheet</span>}
+              </div>
               <span style={{ background: STATUS_COLORS[selected.status], color: '#fff', borderRadius: 8, padding: '2px 10px', fontSize: 12 }}>
                 {selected.status}
               </span>

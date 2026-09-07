@@ -32,8 +32,8 @@ export default function AnalyticsPage() {
 
   const exportCsv = () => {
     const rows = [
-      ['date', 'calls', 'hot', 'warm'],
-      ...timeline.map(d => [d.date, d.calls, d.hot, d.warm]),
+      ['date', 'calls', 'warm'],
+      ...timeline.map(d => [d.date, d.calls, d.warm]),
     ];
     const blob = new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' });
     const a = document.createElement('a');
@@ -71,7 +71,6 @@ export default function AnalyticsPage() {
         <Kpi label="Total calls"        value={summary.totalCalls} />
         <Kpi label="Completed"          value={completed}                    color="var(--success)" />
         <Kpi label="Escalated to human" value={escalated}                    color="var(--warning)" />
-        <Kpi label="Hot leads"          value={summary.byLabel?.hot || 0}    color="var(--danger)" />
         <Kpi label="Avg lead score"     value={summary.avgScore}             color="var(--purple)" />
       </div>
 
@@ -87,7 +86,6 @@ export default function AnalyticsPage() {
               <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #27272a', borderRadius: 8, color: '#f4f4f5' }} />
               <Legend />
               <Line type="monotone" dataKey="calls" name="Calls" stroke="#10b981" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="hot"   name="Hot"   stroke="#f87171" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="warm"  name="Warm"  stroke="#fbbf24" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>

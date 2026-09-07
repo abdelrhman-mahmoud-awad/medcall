@@ -20,6 +20,11 @@ function start() {
   const BASE_URL = () => (process.env.PUBLIC_URL || process.env.BASE_URL || '').replace(/\/$/, '');
 
   queue.process(Number(process.env.MAX_CONCURRENT_CALLS) || 5, async (job) => {
+    if (job.data.type === 'callback') {
+      const { placeCallback } = require('../services/callbackCallService');
+      return placeCallback(job.data.callbackId);
+    }
+
     const { contactId, scriptId, campaignId, initiatedBy } = job.data;
 
     const contact = await Contact.findById(contactId);

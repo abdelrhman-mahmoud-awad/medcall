@@ -19,7 +19,7 @@ const auth    = require('../middleware/auth');
 const CallLog = require('../models/CallLog');
 const Contact = require('../models/Contact');
 const ContactChange = require('../models/ContactChange');
-const { importFromExcel, updateRowForCall, exportCallLogs, FILE } = require('../services/excelService');
+const { importFromExcel, importSuccessfulDoctors, updateRowForCall, exportCallLogs, FILE } = require('../services/excelService');
 const { reviewChange } = require('../services/validationService');
 const { verifyChange, verifyContact } = require('../services/verificationAgent');
 
@@ -38,6 +38,19 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
     res.json({ success: true, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/excel/upload-successful — attach unique data-entry links without replacing master data
+router.post('/upload-successful', auth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const result = await importSuccessfulDoctors(req.file.path);
+    fs.unlinkSync(req.file.path);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    res.status(400).json({ error: err.message });
   }
 });
 

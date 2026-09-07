@@ -88,7 +88,6 @@ async function seed() {
       ],
 
       warmThreshold: 35,
-      hotThreshold:  65,
     });
     console.log('✅ Sample script created: Augmentin market research');
   } else {

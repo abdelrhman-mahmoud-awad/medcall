@@ -12,7 +12,7 @@
     { "key": "interested",     "label": "Interested in samples?", "type": "radio",    "source": "transcript", "options": ["yes", "no"] },
 
     { "key": "lead_score",     "label": "Lead Score",             "type": "number",   "source": "call.leadScore" },
-    { "key": "lead_label",     "label": "Lead Label",             "type": "select",   "source": "call.leadLabel", "options": ["cold", "warm", "hot"] },
+    { "key": "lead_label",     "label": "Lead Label",             "type": "select",   "source": "call.leadLabel", "options": ["cold", "warm"] },
     { "key": "notes",          "label": "Notes",                  "type": "textarea", "source": "transcript" },
     { "key": "call_date",      "label": "Call Date",              "type": "date",     "source": "call.endedAt", "format": "YYYY-MM-DD" },
     { "key": "recording_link", "label": "Recording Link",         "type": "text",     "source": "call.drive.recordingUrl" }

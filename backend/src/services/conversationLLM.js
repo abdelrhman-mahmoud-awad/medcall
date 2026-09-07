@@ -139,7 +139,7 @@ async function processTurn(script, contact, history, userText) {
 // ─── Lead scoring ─────────────────────────────────────────────────────────────
 /**
  * Score the call based on extracted responses.
- * Returns { score: 0-100, label: 'cold'|'warm'|'hot' }
+ * Returns { score: 0-100, label: 'cold'|'warm' }
  */
 function scoreCall(responses, script) {
   if (!responses || responses.length === 0) return { score: 0, label: 'cold' };
@@ -162,9 +162,7 @@ function scoreCall(responses, script) {
   }
 
   const score = maxTotal > 0 ? Math.round((total / maxTotal) * 100) : 0;
-  const label =
-    score >= (script.hotThreshold  || 70) ? 'hot'  :
-    score >= (script.warmThreshold || 40) ? 'warm' : 'cold';
+  const label = score >= (script.warmThreshold || 40) ? 'warm' : 'cold';
 
   return { score, label };
 }

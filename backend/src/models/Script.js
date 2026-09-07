@@ -29,7 +29,6 @@ const scriptSchema = new mongoose.Schema({
 
   // Lead scoring thresholds
   warmThreshold:{ type: Number, default: 40 },
-  hotThreshold: { type: Number, default: 70 },
 
   active:       { type: Boolean, default: true },
   createdBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

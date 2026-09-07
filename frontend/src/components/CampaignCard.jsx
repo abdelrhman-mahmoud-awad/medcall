@@ -26,7 +26,6 @@ export default function CampaignCard({ campaign: c, onLaunch, onPause, onResume 
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-        <span className="badge badge-red">{c.hotLeads} hot</span>
         <span className="badge badge-amber">{c.warmLeads} warm</span>
         <span className="badge badge-info">{c.coldLeads} cold</span>
 

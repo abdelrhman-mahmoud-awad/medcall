@@ -132,7 +132,6 @@ class CallSession {
       if (updatedLog.campaign) {
         const Campaign = require('../models/Campaign');
         const inc = { completedCalls: 1 };
-        if (label === 'hot')  inc.hotLeads  = 1;
         if (label === 'warm') inc.warmLeads = 1;
         if (label === 'cold') inc.coldLeads = 1;
 
@@ -153,7 +152,6 @@ class CallSession {
           emitCampaignProgress(campaign._id, {
             completedCalls: campaign.completedCalls,
             totalCalls:     campaign.totalCalls,
-            hotLeads:       campaign.hotLeads,
             warmLeads:      campaign.warmLeads,
             coldLeads:      campaign.coldLeads,
             avgScore,

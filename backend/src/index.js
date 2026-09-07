@@ -58,6 +58,7 @@ app.use('/api/contacts',require('./routes/contacts'));
 app.use('/api/calls',   require('./routes/calls'));
 app.use('/api/scripts', require('./routes/scripts'));
 app.use('/api/twilio',  require('./routes/twilio'));
+app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/excel',   require('./routes/excel'));
 app.use('/api/campaigns', require('./routes/campaigns'));
 app.use('/api/analytics', require('./routes/analytics'));

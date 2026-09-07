@@ -59,13 +59,12 @@ router.get('/stats/summary', auth, projectScope, async (req, res) => {
     if (req.scopeProject) {
       base.contact = { $in: await projectContactIds(req.scopeProject._id) };
     }
-    const [total, warm, hot, escalated] = await Promise.all([
+    const [total, warm, escalated] = await Promise.all([
       CallLog.countDocuments(base),
       CallLog.countDocuments({ ...base, leadLabel: 'warm' }),
-      CallLog.countDocuments({ ...base, leadLabel: 'hot' }),
       CallLog.countDocuments({ ...base, escalated: true }),
     ]);
-    res.json({ total, warm, hot, escalated, cold: total - warm - hot });
+    res.json({ total, warm, escalated, cold: total - warm });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

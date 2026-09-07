@@ -3,7 +3,7 @@ import { getScripts, createScript, updateScript } from '../services/api';
 
 const emptyForm = {
   name: '', drugName: '', targetType: 'both',
-  greeting: '', closing: '', warmThreshold: 40, hotThreshold: 70,
+  greeting: '', closing: '', warmThreshold: 40,
   questions: [],
 };
 
@@ -44,7 +44,7 @@ export default function ScriptsPage() {
     setForm({
       name: s.name, drugName: s.drugName, targetType: s.targetType,
       greeting: s.greeting, closing: s.closing,
-      warmThreshold: s.warmThreshold, hotThreshold: s.hotThreshold,
+      warmThreshold: s.warmThreshold,
       questions: s.questions || [],
     });
     setShowForm(true); setError('');
@@ -98,7 +98,6 @@ export default function ScriptsPage() {
               <p className="muted" style={{ margin: 0 }}>
                 {s.questions?.length || 0} questions ·{' '}
                 <span className="badge badge-amber">warm ≥ {s.warmThreshold}%</span>{' '}
-                <span className="badge badge-red">hot ≥ {s.hotThreshold}%</span>
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -177,11 +176,6 @@ export default function ScriptsPage() {
                 <label className="label">Warm threshold (%)</label>
                 <input className="input" type="number" min={0} max={100} value={form.warmThreshold}
                        onChange={e => setForm(f => ({ ...f, warmThreshold: Number(e.target.value) }))} />
-              </div>
-              <div>
-                <label className="label">Hot threshold (%)</label>
-                <input className="input" type="number" min={0} max={100} value={form.hotThreshold}
-                       onChange={e => setForm(f => ({ ...f, hotThreshold: Number(e.target.value) }))} />
               </div>
             </div>
 

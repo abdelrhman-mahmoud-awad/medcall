@@ -163,7 +163,6 @@ function ProjectCard({ project, isManager, onChanged }) {
       {progress && (
         <div style={{ display: 'flex', gap: 18, marginTop: 12, fontSize: 12.5, color: 'var(--text-2)', flexWrap: 'wrap' }}>
           <span>Contacts: <b>{progress.totals.contacts}</b></span>
-          <span>Hot leads: <b>{progress.totals.hotLeads}</b></span>
           {progress.totals.avgScore != null && <span>Avg. score: <b>{progress.totals.avgScore}</b></span>}
         </div>
       )}

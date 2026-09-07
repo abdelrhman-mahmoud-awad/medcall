@@ -15,6 +15,7 @@ const ProjectSettingsPage = lazy(() => import('./pages/ProjectSettingsPage'));
 const AccountPage         = lazy(() => import('./pages/AccountPage'));
 const DashboardPage       = lazy(() => import('./pages/DashboardPage'));
 const OnboardingPage      = lazy(() => import('./pages/OnboardingPage'));
+const CalendarPage        = lazy(() => import('./pages/CalendarPage'));
 
 import PageLoader from './components/PageLoader';
 import { getActiveProjectId, setActiveProject } from './services/projectStore';
@@ -22,9 +23,10 @@ import { getRole, isManager } from './hooks/useRole';
 
 // ── Auth helpers ───────────────────────────────────────────────────────────────
 const isLoggedIn = () => !!localStorage.getItem('medcall_token');
+const devAuthBypass = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === 'true';
 
 function PrivateRoute({ children }) {
-  return isLoggedIn() ? children : <Navigate to="/login" replace />;
+  return isLoggedIn() || devAuthBypass ? children : <Navigate to="/login" replace />;
 }
 
 // Manager-only routes: members are redirected to their console.
@@ -37,6 +39,7 @@ function Icon({ name, size = 16 }) {
   const paths = {
     phone:  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />,
     send:   <><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></>,
+    calendar: <><rect x="3" y="4" width="18" height="17" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="8" y1="14" x2="8.01" y2="14" /><line x1="12" y1="14" x2="12.01" y2="14" /><line x1="16" y1="14" x2="16.01" y2="14" /></>,
     headset:<><path d="M3 18v-6a9 9 0 0 1 18 0v6" /><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" /></>,
     briefcase: <><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></>,
     trending:  <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></>,
@@ -196,6 +199,7 @@ const NAV = [
     items: [
       { to: '/calling', label: 'Calling',       icon: 'phone' },
       { to: '/agents',  label: 'Agent Console', icon: 'headset' },
+      { to: '/calendar', label: 'Calendar',      icon: 'calendar' },
     ],
   },
   {
@@ -293,7 +297,8 @@ function Shell({ children }) {
     localStorage.removeItem('medcall_token');
     localStorage.removeItem('medcall_role');
     localStorage.removeItem('medcall_user');
-    window.location.href = '/login';
+    localStorage.removeItem('medcall_project');
+    window.location.href = '/#/login';
   };
 
   return (
@@ -398,6 +403,7 @@ export default function App() {
                 <Route path="/calling"      element={<Navigate to="/calling/quick" replace />} />
                 <Route path="/calling/:tab" element={<CallingPage />} />
                 <Route path="/agents"     element={<AgentConsolePage />} />
+                <Route path="/calendar"   element={<CalendarPage />} />
                 <Route path="/data"       element={<Navigate to="/data/contacts" replace />} />
                 <Route path="/data/:tab"  element={<DataHubPage />} />
                 <Route path="/reports"      element={<Navigate to="/reports/analytics" replace />} />

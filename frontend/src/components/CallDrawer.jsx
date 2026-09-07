@@ -11,7 +11,6 @@ export const CALL_STATUS = {
 };
 
 export const LEAD_LABEL = {
-  hot:  { cls: 'badge-red',   label: 'Hot' },
   warm: { cls: 'badge-amber', label: 'Warm' },
   cold: { cls: 'badge-blue',  label: 'Cold' },
 };
