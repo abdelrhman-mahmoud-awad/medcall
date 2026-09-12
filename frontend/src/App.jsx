@@ -16,6 +16,7 @@ const AccountPage         = lazy(() => import('./pages/AccountPage'));
 const DashboardPage       = lazy(() => import('./pages/DashboardPage'));
 const OnboardingPage      = lazy(() => import('./pages/OnboardingPage'));
 const CalendarPage        = lazy(() => import('./pages/CalendarPage'));
+const QualityControlPage  = lazy(() => import('./pages/QualityControlPage'));
 
 import PageLoader from './components/PageLoader';
 import { getActiveProjectId, setActiveProject } from './services/projectStore';
@@ -53,6 +54,8 @@ function Icon({ name, size = 16 }) {
     logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
     user:   <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>,
     home:   <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
+    sun:    <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></>,
+    moon:   <><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></>,
   };
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
@@ -103,8 +106,10 @@ function LoginPage() {
         if (!(projects.data || []).length) { nav('/onboarding'); return; }
       } catch { /* if the check fails, fall through to the dashboard */ }
       nav('/dashboard');
-    } catch {
-      setError('Invalid email or password.');
+    } catch (err) {
+      if (!err.response) setError('Backend unavailable. Start the backend and check MongoDB connection.');
+      else if (err.response.status === 401) setError('Invalid email or password.');
+      else setError(err.response.data?.error || 'Sign in failed.');
     }
   };
 
@@ -206,6 +211,7 @@ const NAV = [
     section: 'Research',
     items: [
       { to: '/projects', label: 'Projects', icon: 'briefcase', managerOnly: true },
+      { to: '/quality-control', label: 'Quality Control', icon: 'check', managerOnly: true },
       { to: '/reports',  label: 'Reports',  icon: 'chart' },
     ],
   },
@@ -245,7 +251,13 @@ function Shell({ children }) {
   };
   const [user, setUser]         = useState(readUser);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme]       = useState(() => localStorage.getItem('medcall_theme') || 'dark');
   const menuRef = useRef(null);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('medcall_theme', theme);
+  }, [theme]);
 
   // Project switcher — role-scoped list from GET /api/projects
   const [projects, setProjects]         = useState([]);
@@ -337,6 +349,16 @@ function Shell({ children }) {
         <div className="topbar">
           <span className="crumb">{pageTitle(location.pathname)}</span>
 
+          <button
+            className="theme-switch"
+            onClick={() => setTheme(current => current === 'dark' ? 'light' : 'dark')}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
+            <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+          </button>
+
           <div style={{ marginLeft: 'auto', marginRight: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Icon name="briefcase" size={14} />
             <select
@@ -404,6 +426,7 @@ export default function App() {
                 <Route path="/calling/:tab" element={<CallingPage />} />
                 <Route path="/agents"     element={<AgentConsolePage />} />
                 <Route path="/calendar"   element={<CalendarPage />} />
+                <Route path="/quality-control" element={<ManagerRoute><QualityControlPage /></ManagerRoute>} />
                 <Route path="/data"       element={<Navigate to="/data/contacts" replace />} />
                 <Route path="/data/:tab"  element={<DataHubPage />} />
                 <Route path="/reports"      element={<Navigate to="/reports/analytics" replace />} />

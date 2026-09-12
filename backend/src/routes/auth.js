@@ -10,14 +10,15 @@ const sign = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '7d' 
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
     if (!name || !email || !password)
       return res.status(400).json({ error: 'All fields required' });
 
-    if (await User.findOne({ email }))
+    if (await User.findOne({ email: normalizedEmail }))
       return res.status(409).json({ error: 'Email already registered' });
 
     // Phase 5: whoever registers is a MANAGER (members are created by managers)
-    const user = await User.create({ name, email, password, role: 'manager' });
+    const user = await User.create({ name, email: normalizedEmail, password, role: 'manager' });
     res.status(201).json({
       token: sign(user._id),
       user: { id: user._id, name, email, role: user.role },
@@ -31,7 +32,7 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email?.trim().toLowerCase() });
     if (!user || !(await user.matchPassword(password)))
       return res.status(401).json({ error: 'Invalid credentials' });
     if (user.active === false)
